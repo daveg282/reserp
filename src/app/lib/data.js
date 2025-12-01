@@ -354,4 +354,160 @@ export const sampleOrders = [
       }
     ]
   }
+  
+];
+
+export const tables = [
+  { id: 1, number: 'T01', status: 'occupied', customers: 2, section: 'Main' },
+  { id: 2, number: 'T02', status: 'available', customers: 0, section: 'Main' },
+  { id: 3, number: 'T03', status: 'occupied', customers: 4, section: 'Main' },
+  { id: 4, number: 'T04', status: 'reserved', customers: 0, section: 'VIP' },
+  { id: 5, number: 'T05', status: 'available', customers: 0, section: 'Main' },
+  { id: 6, number: 'T06', status: 'occupied', customers: 3, section: 'Patio' },
+  { id: 7, number: 'T07', status: 'occupied', customers: 6, section: 'VIP' },
+  { id: 8, number: 'T08', status: 'available', customers: 0, section: 'Patio' },
+];
+export const reportsData = {
+  stats: [
+    {
+      title: 'Total Revenue',
+      value: 'ETB 12,450',
+      change: '+12.5%',
+      trend: 'up',
+      icon: 'DollarSign',
+      color: 'bg-green-500'
+    },
+    {
+      title: 'Orders Today',
+      value: '24',
+      change: '+8.2%',
+      trend: 'up',
+      icon: 'TrendingUp',
+      color: 'bg-blue-500'
+    },
+    {
+      title: 'Avg. Order Value',
+      value: 'ETB 518',
+      change: '+5.3%',
+      trend: 'up',
+      icon: 'BarChart3',
+      color: 'bg-purple-500'
+    },
+    {
+      title: 'Preparation Time',
+      value: '18 min',
+      change: '-2.1%',
+      trend: 'down',
+      icon: 'Clock',
+      color: 'bg-orange-500'
+    }
+  ],
+  popularItems: [
+    { name: 'Pasta Carbonara', orders: 45, revenue: 'ETB 8,100' },
+    { name: 'Grilled Salmon', orders: 32, revenue: 'ETB 8,960' },
+    { name: 'Margherita Pizza', orders: 28, revenue: 'ETB 4,480' },
+    { name: 'Tiramisu', orders: 25, revenue: 'ETB 2,375' },
+    { name: 'Caesar Salad', orders: 22, revenue: 'ETB 1,870' }
+  ],
+  tablePerformance: [
+    { table: 'T07 (VIP)', revenue: 'ETB 2,850', orders: 8, avgTime: '22 min' },
+    { table: 'T03 (Main)', revenue: 'ETB 2,150', orders: 6, avgTime: '19 min' },
+    { table: 'T01 (Main)', revenue: 'ETB 1,980', orders: 5, avgTime: '16 min' },
+    { table: 'T06 (Patio)', revenue: 'ETB 1,750', orders: 4, avgTime: '24 min' }
+  ]
+};
+
+// In your data file, make sure settingsOptions looks like this:
+export const settingsOptions = [
+  {
+    id: 1,
+    icon: 'User',
+    titleKey: 'profile',
+    descriptionKey: 'profileDesc',
+    buttonKey: 'manageProfile',
+    color: 'bg-green-500'
+  },
+  {
+    id: 2,
+    icon: 'Shield',
+    titleKey: 'security', 
+    descriptionKey: 'securityDesc',
+    buttonKey: 'manageSecurity',
+    color: 'bg-blue-500'
+  },
+  {
+    id: 3,
+    icon: 'Bell',
+    titleKey: 'notifications',
+    descriptionKey: 'notificationsDesc',
+    buttonKey: 'manageNotifications',
+    color: 'bg-purple-500'
+  },
+  {
+    id: 4,
+    icon: 'Palette',
+    titleKey: 'appearance',
+    descriptionKey: 'appearanceDesc',
+    buttonKey: 'customizeAppearance',
+    color: 'bg-amber-500'
+  }
+];
+// Menu items with ingredient requirements
+
+// Mock inventory data
+export const mockInventory = [
+  { id: 1, name: 'Chicken Breast', category: 'proteins', currentStock: 25, unit: 'kg', minStock: 5, costPerUnit: 320, lastUpdated: '2024-01-15' },
+  { id: 2, name: 'Tomatoes', category: 'vegetables', currentStock: 15, unit: 'kg', minStock: 3, costPerUnit: 80, lastUpdated: '2024-01-15' },
+  { id: 3, name: 'Lettuce', category: 'vegetables', currentStock: 3, unit: 'kg', minStock: 2, costPerUnit: 60, lastUpdated: '2024-01-15' },
+  { id: 4, name: 'Pasta', category: 'grains', currentStock: 8, unit: 'kg', minStock: 2, costPerUnit: 120, lastUpdated: '2024-01-15' },
+  { id: 5, name: 'Coffee Beans', category: 'beverages', currentStock: 6, unit: 'kg', minStock: 1, costPerUnit: 450, lastUpdated: '2024-01-15' },
+  { id: 6, name: 'Salmon Fillet', category: 'proteins', currentStock: 12, unit: 'kg', minStock: 3, costPerUnit: 680, lastUpdated: '2024-01-15' },
+  { id: 7, name: 'Rice', category: 'grains', currentStock: 20, unit: 'kg', minStock: 5, costPerUnit: 85, lastUpdated: '2024-01-15' },
+  { id: 8, name: 'Olive Oil', category: 'condiments', currentStock: 8, unit: 'L', minStock: 2, costPerUnit: 280, lastUpdated: '2024-01-15' }
+];
+
+// Mock orders data
+export const mockOrders = [
+  {
+    id: 101,
+    tableNumber: 'Table 12',
+    orderNumber: 'ORD-001',
+    items: [
+      { ...menuItems[1], quantity: 1, specialRequest: 'Extra cheese, No bacon' },
+      { ...menuItems[2], quantity: 2, specialRequest: 'No croutons, Dressing on side' }
+    ],
+    status: 'pending',
+    orderTime: new Date(Date.now() - 8 * 60000).toISOString(),
+    customerNotes: 'Celebrating anniversary',
+    priority: 'high',
+    estimatedTime: 20,
+    waiterName: 'Sarah'
+  },
+  {
+    id: 102,
+    tableNumber: 'Table 08',
+    orderNumber: 'ORD-002',
+    items: [
+      { ...menuItems[0], quantity: 1, specialRequest: 'Well done, Lemon wedge' },
+      { name: 'Seasonal Vegetables', price: 280, quantity: 1, station: 'vegetables', cookTime: 6 }
+    ],
+    status: 'preparing',
+    orderTime: new Date(Date.now() - 15 * 60000).toISOString(),
+    startedTime: new Date(Date.now() - 10 * 60000).toISOString(),
+    priority: 'normal',
+    estimatedTime: 18,
+    waiterName: 'Michael'
+  }
+];
+
+// Kitchen stations
+export const stations = [
+  { id: 'all', name: 'All Stations', icon: '🍽️', color: 'gray' },
+  { id: 'grill', name: 'Grill Station', icon: '🔥', color: 'red' },
+  { id: 'pasta', name: 'Pasta Station', icon: '🍝', color: 'orange' },
+  { id: 'pizza', name: 'Pizza Station', icon: '🍕', color: 'amber' },
+  { id: 'salad', name: 'Salad Station', icon: '🥗', color: 'green' },
+  { id: 'fryer', name: 'Fryer Station', icon: '🍟', color: 'yellow' },
+  { id: 'vegetables', name: 'Vegetable Station', icon: '🥦', color: 'emerald' },
+  { id: 'sides', name: 'Sides Station', icon: '🥔', color: 'blue' }
 ];

@@ -1,0 +1,144 @@
+{
+  "sidebar": {
+    "title": "Waiter POS",
+    "tables": "Tables",
+    "menu": "Menu",
+    "orders": "Active Orders",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "tables": {
+    "title": "Tables",
+    "occupied": "occupied",
+    "available": "available",
+    "section": "Section",
+    "status": {
+      "available": "Available",
+      "occupied": "Occupied",
+      "reserved": "Reserved"
+    }
+  },
+  "sections": {
+    "main": "Main",
+    "vip": "VIP",
+    "patio": "Patio"
+  },
+  "menu": {
+    "title": "Menu & Ordering",
+    "searchPlaceholder": "Search menu...",
+    "popularItems": "Popular Items",
+    "addToCart": "Add to Cart",
+    "selectTableFirst": "Select Table",
+    "noItems": "No items found",
+    "adjustSearch": "Try adjusting your search or select a different category",
+    "preparationTime": "min",
+    "category": {
+      "all": "All",
+      "starters": "Starters",
+      "mainCourse": "Main Course",
+      "drinks": "Drinks",
+      "desserts": "Desserts"
+    }
+  },
+ "orders": {
+  "title": "Active Orders",
+  "activeOrders": "active orders",
+  "noActiveOrders": "No Active Orders",
+  "allCompleted": "All orders have been completed",
+  "takeNewOrder": "Take New Order",
+  "serve": "Serve",
+  "details": "Details",
+  "estimatedTime": "Est.",
+  "status": {
+    "pending": "pending",
+    "preparing": "preparing",
+    "ready": "ready",
+    "completed": "completed"
+  }
+},
+ "reports": {
+  "title": "Daily Sales Report",
+  "dailySubtitle": "Today's performance metrics and analytics",
+  "export": "Export Report",
+  "popularItems": "Popular Items",
+  "topToday": "Top 5 today",
+  "tablePerformance": "Table Performance",
+  "today": "Today",
+  "orders": "orders",
+  "sold": "sold",
+  "table": "Table",
+  "avgTime": "avg. time",
+  "dailySummary": "Daily Summary",
+  "todaysDate": "Today's date",
+  "dailyPerformance": "Daily performance overview for today",
+  "allDataToday": "All data shown is from today only",
+  "totalRevenue": "Total Revenue",
+  "averageOrder": "Average Order",
+  "tablesServed": "Tables Served",
+  "served": "served",
+  "totalOrders": "Total Orders",
+  "viewAllOrders": "View All Orders"
+  
+},
+ "dailyOrders": {
+    "title": "Daily Orders Report",
+    "subtitle": "Complete order history for today",
+    "allOrders": "All Daily Orders",
+    "noOrders": "No orders found for today",
+    "table": "Table",
+    "items": "items",
+    "orderTime": "Order Time",
+    "status": "Status",
+    "totalAmount": "Total Amount",
+    "customer": "Customer",
+    "type": "Order Type",
+    "dineIn": "Dine In",
+    "takeaway": "Takeaway",
+    "delivery": "Delivery",
+    "back":"back"
+  },
+ "settings": {
+  "title": "Waiter Settings",
+  "subtitle": "Manage your account and preferences",
+  "language": "Language / ቋንቋ",
+  "chooseLanguage": "Choose your preferred language",
+  "systemPreferences": "System Preferences",
+  "darkMode": "Dark Mode",
+  "darkModeDesc": "Switch to dark theme",
+  "soundNotifications": "Sound Notifications", 
+  "soundNotificationsDesc": "Play sound for new orders",
+  "autoLogout": "Auto-logout",
+  "autoLogoutDesc": "Logout after 30 minutes of inactivity",
+  "profile": "Profile Settings",
+  "profileDesc": "Manage your personal information and account details",
+  "security": "Security",
+  "securityDesc": "Update password and security settings",
+  "notifications": "Notifications",
+  "notificationsDesc": "Configure alerts and notification preferences",
+  "appearance": "Appearance",
+  "appearanceDesc": "Customize the look and feel of the app",
+  "manageProfile": "Manage Profile",
+  "manageSecurity": "Manage Security", 
+  "manageNotifications": "Manage Notifications",
+  "customizeAppearance": "Customize Appearance"
+},
+ "cart": {
+    "title": "Cart",
+    "emptyTitle": "Your cart is empty",
+    "emptyDescription": "Add items from the menu to place an order",
+    "browseMenu": "Browse Menu",
+    "specialInstructions": "Special Instructions",
+    "instructionsPlaceholder": "Any special requests?",
+    "itemTotal": "Item Total",
+    "totalAmount": "Total Amount",
+    "placeOrder": "Place Order",
+    "selectTableFirst": "Select Table First",
+    "clearCart": "Clear Cart",
+    "continue": "Continue",
+    "each": "each"
+  },
+"table": "Table",
+  "customer": "customer",
+  "customers": "customers",
+  "order": "order"
+}
