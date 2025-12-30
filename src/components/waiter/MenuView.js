@@ -1,4 +1,5 @@
-import { ArrowLeft, Clock } from 'lucide-react';
+'use client';
+import { ArrowLeft, Clock, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export default function MenuView({ 
@@ -29,6 +30,10 @@ export default function MenuView({
     'Desserts': t('menu.category.desserts')
   };
 
+  // Check if selected table is valid for ordering
+  const isTableValidForOrder = selectedTable && 
+    (selectedTable.status === 'available' || selectedTable.status === 'occupied');
+
   return (
     <div className="space-y-4 lg:space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -41,21 +46,66 @@ export default function MenuView({
           </button>
           <div>
             <h3 className="text-lg lg:text-xl font-bold text-gray-900">{t('menu.title')}</h3>
-            {selectedTable && (
-              <p className="text-sm text-gray-600">{t('table')} {selectedTable.number} • {selectedTable.section}</p>
+            {selectedTable ? (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-sm text-gray-600">
+                  {t('table')} {selectedTable.number} • {selectedTable.section}
+                </span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  selectedTable.status === 'available' ? 'bg-emerald-100 text-emerald-700' :
+                  selectedTable.status === 'occupied' ? 'bg-blue-100 text-blue-700' :
+                  selectedTable.status === 'reserved' ? 'bg-amber-100 text-amber-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {t(selectedTable.status, selectedTable.status.charAt(0).toUpperCase() + selectedTable.status.slice(1))}
+                </span>
+                <span className="text-xs text-gray-500">
+                  • {selectedTable.customers || 0} {t('customers', 'customers')}
+                </span>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">{t('menu.noTableSelected')}</p>
             )}
           </div>
         </div>
         
-        {!selectedTable && (
+        {!selectedTable ? (
           <button
             onClick={() => setActiveView('tables')}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-medium text-sm lg:text-base"
           >
             {t('menu.selectTableFirst')}
           </button>
-        )}
+        ) : selectedTable.status === 'reserved' ? (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-100 text-amber-700 rounded-xl">
+            <AlertCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {t('menu.tableReserved')}
+            </span>
+            <button
+              onClick={() => setActiveView('tables')}
+              className="ml-2 bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded-lg text-xs font-medium"
+            >
+              {t('menu.changeTable')}
+            </button>
+          </div>
+        ) : null}
       </div>
+
+      {/* Warning message for invalid table status */}
+      {selectedTable && selectedTable.status === 'reserved' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-start">
+            <AlertCircle className="w-5 h-5 text-amber-600 mr-2 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-amber-800">{t('menu.reservedTableWarning')}</h4>
+              <p className="text-amber-700 text-sm mt-1">
+                {t('menu.reservedTableDescription')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Category Navigation */}
       <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -92,14 +142,20 @@ export default function MenuView({
                 </div>
                 <button
                   onClick={() => addToCart(item)}
-                  disabled={!item.available || !selectedTable}
+                  disabled={!item.available || !isTableValidForOrder}
                   className={`w-full py-2 rounded-lg text-xs lg:text-sm font-medium transition ${
-                    item.available && selectedTable
+                    item.available && isTableValidForOrder
                       ? 'bg-green-600 text-white hover:bg-green-700'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
-                  {!selectedTable ? t('menu.selectTableFirst') : t('menu.addToCart')}
+                  {!selectedTable 
+                    ? t('menu.selectTableFirst') 
+                    : selectedTable.status === 'reserved'
+                    ? t('menu.tableReserved')
+                    : !item.available
+                    ? t('menu.itemUnavailable')
+                    : t('menu.addToCart')}
                 </button>
               </div>
             ))}
@@ -134,19 +190,32 @@ export default function MenuView({
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-xs lg:text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    {categoryMap[item.category] || item.category}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs lg:text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      {categoryMap[item.category] || item.category}
+                    </span>
+                    {!item.available && (
+                      <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                        {t('menu.unavailable')}
+                      </span>
+                    )}
+                  </div>
                   <button
                     onClick={() => addToCart(item)}
-                    disabled={!item.available || !selectedTable}
+                    disabled={!item.available || !isTableValidForOrder}
                     className={`px-3 lg:px-4 py-2 rounded-lg text-xs lg:text-sm font-medium transition ${
-                      item.available && selectedTable
+                      item.available && isTableValidForOrder
                         ? 'bg-green-600 text-white hover:bg-green-700'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {!selectedTable ? t('menu.selectTableFirst') : t('menu.addToCart')}
+                    {!selectedTable 
+                      ? t('menu.selectTableFirst') 
+                      : selectedTable.status === 'reserved'
+                      ? t('menu.tableReserved')
+                      : !item.available
+                      ? t('menu.itemUnavailable')
+                      : t('menu.addToCart')}
                   </button>
                 </div>
               </div>

@@ -2,17 +2,20 @@ import { Menu, Users, Utensils, ShoppingCart, BarChart3, Settings, Crown, LogOut
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/contexts/auth-context'; // ADD THIS IMPORT
 
 export default function Sidebar({ 
   sidebarOpen, 
   setSidebarOpen, 
   activeView, 
   setActiveView,
-  orders 
+  orders,
+  handleLogout, // ADD THIS PROP
+  isLoading // ADD THIS PROP
 }) {
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { t } = useTranslation();
+  const { user } = useAuth(); // ADD THIS TO GET USER INFO
 
   const menuItemsList = [
     { id: 'tables', icon: Users, label: t('tables'), view: 'tables' },
@@ -22,12 +25,17 @@ export default function Sidebar({
     { id: 'settings', icon: Settings, label: t('settings'), view: 'settings' },
   ];
 
-  const handleLogout = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      router.push('/login');
-    }, 1000);
+  // Use the handleLogout function passed from parent
+  const onLogout = async () => {
+    if (handleLogout) {
+      await handleLogout();
+    }
   };
+
+  // Get user info from auth context
+  const userName = user?.name || 'Waiter';
+  const userEmail = user?.email || 'waiter@example.com';
+  const userRole = user?.role || 'Waiter';
 
   return (
     <div className={`fixed lg:static bg-gradient-to-b from-green-900 to-green-800 text-white transition-all duration-300 h-full z-50 ${
@@ -72,31 +80,31 @@ export default function Sidebar({
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-100 space-y-4">
+      <div className="p-4 border-t border-green-700 space-y-4">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center font-bold flex-shrink-0">
+          <div className="w-10 h-10 bg-green-700 rounded-full flex items-center justify-center font-bold flex-shrink-0">
             <Crown className="w-5 h-5" />
           </div>
           {sidebarOpen && (
             <div className="flex-1">
-              <p className="font-semibold text-sm">Waiter</p>
-              <p className="text-xs text-gray-300">InerNett</p>
+              <p className="font-semibold text-sm truncate">{userName}</p>
+              <p className="text-xs text-gray-300 truncate">{userRole}</p>
             </div>
           )}
         </div>
         
         {sidebarOpen && (
           <button
-            onClick={handleLogout}
+            onClick={onLogout}
             disabled={isLoading}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-zinc-900 hover:bg-zinc-950 disabled:bg-red-400 text-white rounded-xl font-semibold transition-all duration-200"
+            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl font-semibold transition-all duration-200"
           >
             {isLoading ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
             ) : (
               <LogOut className="w-4 h-4" />
             )}
-            <span className="text-sm">{isLoading ? 'Loading...' : t('logout')}</span>
+            <span className="text-sm">{isLoading ? t('loggingOut') || 'Logging out...' : t('logout') || 'Logout'}</span>
           </button>
         )}
       </div>

@@ -25,7 +25,7 @@ class RestaurantService {
   // Initialize with default data from your data.js
   initializeDefaultData() {
     // Import your data
-    const { menuItems, tables, stations, sampleOrders } = require('../app/lib/data');
+    const { menuItems, tables, stations, sampleOrders } = require('../lib/data');
     
     // Initialize menu items
     if (!localStorage.getItem(STORAGE_KEYS.MENU_ITEMS)) {

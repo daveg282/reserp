@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-export default function TablesView({ tables, setSelectedTable, setActiveView, orders, getTableOrders }) {
+export default function TablesView({ tables, setSelectedTable, setActiveView, orders, getTableOrders, isLoading }) {
   const { t } = useTranslation();
 
   const getTableStatusColor = (status) => {
@@ -12,21 +12,31 @@ export default function TablesView({ tables, setSelectedTable, setActiveView, or
     }
   };
 
-  const translateSection = (section) => {
-    const sectionMap = {
-      'main': t('mainSection'),
-      'vip': t('vipSection'), 
-      'patio': t('patioSection')
-    };
-    return sectionMap[section.toLowerCase()] || section;
-  };
+  if (isLoading) {
+    return (
+      <div className="space-y-4 lg:space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <h3 className="text-lg lg:text-xl font-bold text-gray-900">{t('tables', 'Tables')}</h3>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 lg:gap-4">
+          {[...Array(12)].map((_, index) => (
+            <div key={index} className="bg-white rounded-xl lg:rounded-2xl shadow-sm border-2 p-3 lg:p-4 text-center animate-pulse">
+              <div className="h-6 bg-gray-200 rounded mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 lg:space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h3 className="text-lg lg:text-xl font-bold text-gray-900">{t('tables')}</h3>
+        <h3 className="text-lg lg:text-xl font-bold text-gray-900">{t('tables', 'Tables')}</h3>
         <div className="text-sm text-gray-600 bg-white px-3 py-2 rounded-xl border">
-          {tables.filter(t => t.status === 'occupied').length} {t('occupied')} • {tables.filter(t => t.status === 'available').length} {t('available')}
+          {tables.filter(t => t.status === 'occupied').length} {t('occupied', 'Occupied')} • {tables.filter(t => t.status === 'available').length} {t('available', 'Available')}
         </div>
       </div>
 
@@ -48,15 +58,18 @@ export default function TablesView({ tables, setSelectedTable, setActiveView, or
             >
               <h4 className="text-lg lg:text-xl font-bold text-gray-900 mb-1 lg:mb-2">{table.number}</h4>
               <div className={`px-2 py-1 rounded-full text-xs font-semibold mb-2 ${getTableStatusColor(table.status)}`}>
-                {t(table.status)}
+                {t(table.status, table.status.charAt(0).toUpperCase() + table.status.slice(1))}
               </div>
-              <p className="text-xs text-gray-600">
-                {table.customers} {t(table.customers === 1 ? 'customer' : 'customers')}
+              <p className="text-xs text-gray-600 mb-1">
+                {table.customers} {t(table.customers === 1 ? 'customer' : 'customers', table.customers === 1 ? 'Customer' : 'Customers')}
+              </p>
+              <p className="text-xs text-gray-500">
+                {table.section}
               </p>
               
               {tableOrders.length > 0 && (
                 <div className="mt-2 px-2 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-semibold">
-                  {tableOrders.length} {t(tableOrders.length === 1 ? 'order' : 'orders')}
+                  {tableOrders.length} {t(tableOrders.length === 1 ? 'order' : 'orders', tableOrders.length === 1 ? 'Order' : 'Orders')}
                 </div>
               )}
             </div>

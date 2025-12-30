@@ -3,6 +3,7 @@ import {
   Home, ShoppingCart, Utensils, Package, Scale, 
   BarChart3, Settings, Menu, LogOut, Crown, RefreshCw 
 } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context'; // ADD THIS IMPORT
 
 const menuItems = [
   { id: 'dashboard', icon: Home, label: 'dashboard.title', view: 'dashboard' },
@@ -19,11 +20,15 @@ export default function ChefSidebar({
   setActiveView, 
   sidebarOpen, 
   setSidebarOpen, 
-  user, 
+  user, // This prop might be passed from parent, but we'll use auth context instead
   isLoading, 
   onLogout 
 }) {
   const { t } = useTranslation('chef');
+  const { user: authUser } = useAuth(); // GET USER FROM AUTH CONTEXT
+
+  // Use auth context user if available, otherwise use the prop
+  const currentUser = authUser || user;
 
   return (
     <div className={`fixed lg:static bg-gradient-to-b from-orange-900 to-orange-800 text-white transition-all duration-300 h-full z-50 ${
@@ -77,10 +82,15 @@ export default function ChefSidebar({
           <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center font-bold flex-shrink-0">
             <Crown className="w-5 h-5" />
           </div>
-          {sidebarOpen && (
+          {sidebarOpen && currentUser && (
             <div className="flex-1">
-              <p className="font-semibold text-sm">Kitchen</p>
-              <p className="text-xs text-orange-300">InerNett</p>
+              <p className="font-semibold text-sm truncate">
+                {currentUser.name || currentUser.email || 'Chef'}
+              </p>
+              <p className="text-xs text-orange-300 truncate">
+                {currentUser.role ? `${currentUser.role} • ` : ''}
+                {currentUser.email || 'chef@restaurant.com'}
+              </p>
             </div>
           )}
         </div>

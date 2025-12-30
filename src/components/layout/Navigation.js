@@ -17,120 +17,118 @@ export default function Navigation() {
 
   return (
     <nav className={`
-      fixed top-0 w-full z-50 transition-all duration-500
+      fixed top-0 w-full z-50 transition-all duration-300
       ${isScrolled 
-        ? 'bg-white/98 backdrop-blur-xl border-b border-gray-300/30 shadow-2xl py-1' 
-        : 'bg-white/95 backdrop-blur-lg border-b border-gray-200/20 shadow-lg py-2'
+        ? 'bg-white backdrop-blur-xl border-b border-gray-200/50 shadow-sm py-0' 
+        : 'bg-white backdrop-blur-lg border-b border-gray-200/30 py-0'
       }
     `}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-14">
-          {/* Enhanced Logo */}
+        <div className="flex justify-between items-center h-16">
+          {/* Refined Logo */}
           <Link href="/" className="flex items-center group">
             <div className="relative">
-              <div className="text-white p-2.5 rounded-2xl mr-3 shadow-2xl group-hover:shadow-3xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3">
+              <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-2 rounded-xl mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
                 <img 
                   src="/favicon.svg" 
                   alt="InerNett Logo" 
-                  className="w-7 h-7 filter"
+                  className="w-6 h-6 filter brightness-0 invert"
                 />
               </div>
-   
             </div>
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold text-indigo-600  group-hover:from-blue-700 group-hover:to-cyan-700 transition-all duration-500 ">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent group-hover:from-indigo-700 group-hover:to-blue-700 transition-all duration-300">
                 InerNett
               </h1>
-              <p className="text-xs text-gray-500 hidden sm:block transition-colors duration-300 font-medium">
-                Restaurant ERP System
+              <p className="text-[10px] text-gray-500 hidden sm:block transition-colors duration-300 font-medium tracking-wide">
+                RESTAURANT ERP SYSTEM
               </p>
             </div>
           </Link>
 
-          {/* Enhanced Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
+          {/* Refined Desktop Auth Buttons */}
+          <div className="hidden md:flex items-center space-x-3">
             <Link 
               href="/login" 
-              className="relative group text-gray-700 hover:text-blue-700 font-semibold transition-all duration-500 px-7 py-3 rounded-2xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 border-2 border-transparent hover:border-blue-200/50"
+              className="relative group text-gray-600 hover:text-gray-900 font-medium transition-all duration-300 px-5 py-2.5 rounded-lg hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
             >
-              <span className="relative z-10 flex items-center">
+              <span className="relative z-10 flex items-center text-sm">
                 Staff Login
+                <svg className="w-4 h-4 ml-2"  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </span>
             </Link>
             <Link 
               href="/menu" 
-              className="relative group bg-indigo-600 text-white px-8 py-3 rounded-2xl hover:from-blue-700 hover:to-cyan-700 transition-all duration-500 font-semibold shadow-2xl hover:shadow-3xl transform hover:scale-105 hover:shadow-blue-500/30 overflow-hidden"
+              className="relative bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-6 py-2.5 rounded-lg hover:from-indigo-700 hover:to-blue-700 transition-all duration-300 font-medium shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-95"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-              <span className="relative flex items-center">
+              <span className="relative flex items-center text-sm">
                 View Demo
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
               </span>
             </Link>
           </div>
 
-          {/* Enhanced Mobile menu button */}
+          {/* Refined Mobile menu button */}
           <div className="md:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className={`
-                relative p-3 rounded-2xl transition-all duration-500 group
+                relative p-2.5 rounded-lg transition-all duration-300 group
                 ${isMenuOpen 
-                  ? 'bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-600 shadow-inner' 
-                  : 'bg-gradient-to-r from-blue-50/80 to-cyan-50/80 text-gray-700 hover:bg-blue-100 hover:text-blue-600 shadow-lg hover:shadow-xl'
+                  ? 'bg-gray-100 text-gray-900' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }
               `}
               aria-label="Toggle menu"
             >
-              <div className="relative w-6 h-6">
+              <div className="relative w-5 h-5">
                 <span className={`
-                  absolute block w-6 h-0.5 bg-current transition-all duration-500 rounded-full
-                  ${isMenuOpen ? 'rotate-45 top-3 translate-y-0' : 'top-2 -translate-y-1'}
+                  absolute block w-5 h-0.5 bg-current transition-all duration-300 rounded-full
+                  ${isMenuOpen ? 'rotate-45 top-2.5' : 'top-1'}
                 `}></span>
                 <span className={`
-                  absolute block w-6 h-0.5 bg-current transition-all duration-500 rounded-full top-3
-                  ${isMenuOpen ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'}
+                  absolute block w-5 h-0.5 bg-current transition-all duration-300 rounded-full top-2.5
+                  ${isMenuOpen ? 'opacity-0' : 'opacity-100'}
                 `}></span>
                 <span className={`
-                  absolute block w-6 h-0.5 bg-current transition-all duration-500 rounded-full
-                  ${isMenuOpen ? '-rotate-45 top-3 translate-y-0' : 'top-4 translate-y-1'}
+                  absolute block w-5 h-0.5 bg-current transition-all duration-300 rounded-full
+                  ${isMenuOpen ? '-rotate-45 top-2.5' : 'top-4'}
                 `}></span>
               </div>
             </button>
           </div>
         </div>
 
-        {/* Enhanced Mobile Menu */}
+        {/* Refined Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden bg-white/98 backdrop-blur-xl border-t border-gray-200/30 shadow-2xl rounded-b-3xl overflow-hidden">
-            <div className="flex flex-col py-6 px-5">
-              {/* Enhanced Auth Buttons */}
-              <div className="space-y-4">
+          <div className="md:hidden bg-white border-t border-gray-100 rounded-b-xl overflow-hidden animate-in slide-in-from-top duration-300">
+            <div className="flex flex-col py-4 px-4">
+              {/* Refined Auth Buttons */}
+              <div className="space-y-3">
                 <Link 
                   href="/login" 
-                  className="group flex items-center justify-center text-gray-700 hover:text-blue-700 font-semibold transition-all duration-500 px-6 py-4 rounded-2xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 border-2 border-gray-300/50 hover:border-blue-200/50"
+                  className="group flex items-center justify-between text-gray-700 hover:text-gray-900 font-medium transition-all duration-300 px-4 py-3.5 rounded-lg hover:bg-gray-50 border border-gray-200"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Staff Login
+                  <span>Staff Login</span>
+                  <svg className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
                 </Link>
                 <Link 
                   href="/menu" 
-                  className="group bg-indigo-600 text-white px-6 py-4 rounded-2xl hover:from-blue-700 hover:to-cyan-700 transition-all duration-500 font-semibold text-center shadow-2xl hover:shadow-3xl active:scale-95 flex items-center justify-center"
+                  className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-4 py-3.5 rounded-lg hover:from-indigo-700 hover:to-blue-700 transition-all duration-300 font-medium text-center shadow-md hover:shadow-lg active:scale-95 flex items-center justify-between"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  View Demo Menu
+                  <span>View Demo Menu</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
                 </Link>
-              </div>
-
-              {/* Enhanced Contact Info */}
-              <div className="border-t border-gray-200/50 pt-6 mt-6">
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 font-semibold mb-3">Need help? Contact us:</p>
-                  <div className="space-y-2">
-                    <p className="text-base text-gray-800 font-bold">+251 911 234 567</p>
-                    <p className="text-sm text-gray-600">info@inernett.com</p>
-                    <p className="text-xs text-gray-500 mt-3">Addis Ababa, Ethiopia</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

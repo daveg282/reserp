@@ -58,8 +58,8 @@ export default function Features() {
       title: "Analytics & Reporting",
       description: "Comprehensive business intelligence with detailed sales analytics, performance metrics, and actionable insights.",
       items: ["Sales performance dashboards", "Staff productivity analytics", "Profit margin tracking", "Customer insights"],
-      gradientFrom: "from-rose-50",
-      gradientTo: "to-pink-50",
+      gradientFrom: "from-red-50",
+      gradientTo: "to-red-100",
       borderColor: "border-rose-100",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -83,7 +83,7 @@ export default function Features() {
   ];
 
   return (
-    <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-white to-gray-50/30">
+    <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16 sm:mb-20">
           <div className="inline-flex items-center bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-sm font-medium mb-6">

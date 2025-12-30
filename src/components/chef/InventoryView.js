@@ -1,140 +1,123 @@
+import { 
+  Package, 
+  AlertCircle, 
+  DollarSign, 
+  Plus, 
+  Search, 
+  Filter, 
+  Eye,
+  RefreshCw
+} from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Package, AlertCircle, DollarSign, Plus, Edit, Trash2, Save, X, Search, Filter } from 'lucide-react';
-import { useState, useEffect } from 'react';
 
 export default function InventoryView({ 
   inventory = [], 
-  categories = [],
+  stats = {},
+  isLoading = false,
+  error = null,
+  onRefresh,
+  userRole = 'chef',
   onAddItem,
   onUpdateItem,
-  onDeleteItem,
-  getLowStockItems,
-  getTotalStockValue 
+  onDeleteItem
 }) {
   const { t } = useTranslation('chef');
-  const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('all');
-  const [formData, setFormData] = useState({
-    name: '',
-    category: '',
-    currentStock: 0,
-    minStock: 5,
-    unit: 'pcs',
-    cost: 0
-  });
+  const [viewMode, setViewMode] = useState('grid');
 
-  // Calculate stats
-  const stats = {
-    totalItems: inventory.length,
-    lowStock: getLowStockItems ? getLowStockItems().length : inventory.filter(item => item.currentStock <= item.minStock).length,
-    stockValue: getTotalStockValue ? getTotalStockValue() : inventory.reduce((sum, item) => sum + (item.currentStock * (item.cost || 0)), 0)
-  };
+  // Check if user has write permissions
+  const canWrite = ['admin', 'manager'].includes(userRole);
+  const canView = ['admin', 'manager', 'chef'].includes(userRole);
+
+  if (!canView) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h3>
+          <p className="text-gray-600">You don't have permission to view inventory.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Filter inventory
   const filteredInventory = inventory.filter(item => {
-    if (filter === 'low' && item.currentStock > item.minStock) return false;
-    if (filter === 'out' && item.currentStock > 0) return false;
-    if (searchQuery) {
-      return item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             item.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    }
-    return true;
+    const matchesSearch = searchQuery 
+      ? item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category?.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+    
+    if (filter === 'low') return item.current_stock <= item.minimum_stock && item.current_stock > 0;
+    if (filter === 'out') return item.current_stock === 0;
+    if (filter === 'good') return item.current_stock > item.minimum_stock;
+    
+    return matchesSearch;
   });
-
-  // Units options
-  const units = ['pcs', 'kg', 'g', 'L', 'ml', 'box', 'pack'];
-
-  // Handle form changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: name === 'currentStock' || name === 'minStock' || name === 'cost' 
-        ? parseFloat(value) || 0 
-        : value
-    });
-  };
-
-  // Handle add item
-  const handleAddItem = () => {
-    if (!formData.name.trim()) return;
-
-    const newItem = {
-      id: `item_${Date.now()}`,
-      ...formData,
-      createdAt: new Date().toISOString()
-    };
-
-    if (onAddItem) onAddItem(newItem);
-    setIsAdding(false);
-    resetForm();
-  };
-
-  // Handle update item
-  const handleUpdateItem = () => {
-    if (!formData.name.trim()) return;
-
-    if (onUpdateItem) onUpdateItem(editingId, formData);
-    setEditingId(null);
-    resetForm();
-  };
-
-  // Handle delete item
-  const handleDeleteItem = (id, name) => {
-    if (window.confirm(`${t('inventory.confirmDelete')} "${name}"?`)) {
-      if (onDeleteItem) onDeleteItem(id);
-    }
-  };
-
-  // Handle edit item
-  const handleEditItem = (item) => {
-    setEditingId(item.id);
-    setFormData({
-      name: item.name,
-      category: item.category || '',
-      currentStock: item.currentStock,
-      minStock: item.minStock,
-      unit: item.unit || 'pcs',
-      cost: item.cost || 0
-    });
-  };
-
-  // Reset form
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      category: '',
-      currentStock: 0,
-      minStock: 5,
-      unit: 'pcs',
-      cost: 0
-    });
-  };
 
   // Get stock status
   const getStockStatus = (item) => {
-    if (item.currentStock === 0) {
+    if (item.current_stock === 0) {
       return {
         label: t('inventory.outOfStock'),
         color: 'bg-red-100 text-red-700',
-        bgColor: 'bg-red-50'
+        bgColor: 'bg-red-50',
+        icon: '🔴'
       };
     }
-    if (item.currentStock <= item.minStock) {
+    if (item.current_stock <= item.minimum_stock) {
       return {
         label: t('inventory.lowStock'),
         color: 'bg-orange-100 text-orange-700',
-        bgColor: 'bg-orange-50'
+        bgColor: 'bg-orange-50',
+        icon: '🟡'
       };
     }
     return {
       label: t('inventory.good'),
       color: 'bg-green-100 text-green-700',
-      bgColor: 'bg-green-50'
+      bgColor: 'bg-green-50',
+      icon: '🟢'
     };
   };
+
+  // Calculate stock percentage
+  const getStockPercentage = (item) => {
+    const maxStock = Math.max(item.minimum_stock * 3, item.current_stock);
+    return Math.min(100, (item.current_stock / maxStock) * 100);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading inventory...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+        <div className="flex items-center mb-4">
+          <AlertCircle className="w-6 h-6 text-red-600 mr-3" />
+          <h3 className="text-lg font-semibold text-red-800">Error Loading Inventory</h3>
+        </div>
+        <p className="text-red-700 mb-4">{error}</p>
+        <button
+          onClick={onRefresh}
+          className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium flex items-center"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -142,17 +125,87 @@ export default function InventoryView({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h3 className="text-xl font-bold text-gray-900">{t('inventory.title')}</h3>
-          <p className="text-sm text-gray-600 mt-1">{t('inventory.subtitle', 'Track and manage kitchen inventory')}</p>
+          <p className="text-sm text-gray-600 mt-1">
+            {canWrite 
+              ? 'Manage and track kitchen inventory'
+              : 'View current inventory levels'}
+          </p>
         </div>
         
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => setIsAdding(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-semibold flex items-center space-x-2 transition-colors"
+            onClick={onRefresh}
+            className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl font-medium flex items-center space-x-2 transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            <span>{t('inventory.addItem')}</span>
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh</span>
           </button>
+          
+          {canWrite && (
+            <button 
+              onClick={onAddItem}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-semibold flex items-center space-x-2 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Item</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Items</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalItems || 0}</p>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <Package className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Low Stock</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.lowStock || 0}</p>
+            </div>
+            <div className="p-3 bg-orange-50 rounded-lg">
+              <AlertCircle className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Out of Stock</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.outOfStock || 0}</p>
+            </div>
+            <div className="p-3 bg-red-50 rounded-lg">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Value</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                ${stats.totalValue ? stats.totalValue.toLocaleString(undefined, { 
+                  minimumFractionDigits: 2, 
+                  maximumFractionDigits: 2 
+                }) : '0.00'}
+              </p>
+            </div>
+            <div className="p-3 bg-green-50 rounded-lg">
+              <DollarSign className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -162,7 +215,7 @@ export default function InventoryView({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder={t('inventory.searchPlaceholder', 'Search items...')}
+            placeholder="Search inventory items..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
@@ -175,283 +228,198 @@ export default function InventoryView({
             onChange={(e) => setFilter(e.target.value)}
             className="px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700"
           >
-            <option value="all">{t('inventory.all')}</option>
-            <option value="low">{t('inventory.lowStock')}</option>
-            <option value="out">{t('inventory.outOfStock')}</option>
+            <option value="all">All Items</option>
+            <option value="low">Low Stock</option>
+            <option value="out">Out of Stock</option>
+            <option value="good">Good Stock</option>
           </select>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
-          <Package className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-          <p className="text-2xl font-bold text-gray-900">{stats.totalItems}</p>
-          <p className="text-sm text-gray-600">{t('inventory.totalItems')}</p>
-        </div>
-        
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
-          <AlertCircle className="w-8 h-8 text-orange-600 mx-auto mb-3" />
-          <p className="text-2xl font-bold text-gray-900">{stats.lowStock}</p>
-          <p className="text-sm text-gray-600">{t('inventory.lowStock')}</p>
-        </div>
-        
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
-          <DollarSign className="w-8 h-8 text-green-600 mx-auto mb-3" />
-          <p className="text-2xl font-bold text-gray-900">
-            ${stats.stockValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-          <p className="text-sm text-gray-600">{t('inventory.stockValue')}</p>
-        </div>
-      </div>
-
-      {/* Add/Edit Form */}
-      {(isAdding || editingId) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {editingId ? t('inventory.editItem') : t('inventory.addItem')}
-            </h3>
+          
+          <div className="flex border border-gray-300 rounded-xl overflow-hidden">
             <button
-              onClick={() => {
-                setIsAdding(false);
-                setEditingId(null);
-                resetForm();
-              }}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              onClick={() => setViewMode('grid')}
+              className={`px-4 py-2.5 ${viewMode === 'grid' ? 'bg-gray-100' : 'bg-white'}`}
             >
-              <X className="w-5 h-5 text-gray-500" />
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2.5 ${viewMode === 'list' ? 'bg-gray-100' : 'bg-white'}`}
+            >
+              List
             </button>
           </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('inventory.itemName')} *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2.5 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder={t('inventory.itemNamePlaceholder', 'Enter item name')}
-                />
-              </div>
+      {/* Inventory Grid View */}
+      {viewMode === 'grid' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredInventory.length > 0 ? (
+            filteredInventory.map((item) => {
+              const status = getStockStatus(item);
+              const stockPercentage = getStockPercentage(item);
+              
+              return (
+                <div key={item.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="p-6">
+                    {/* Header */}
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900 text-lg truncate">{item.name}</h4>
+                        {item.category && (
+                          <span className="text-sm text-gray-600 mt-1 block">{item.category}</span>
+                        )}
+                      </div>
+                      
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${status.color}`}>
+                        {status.icon} {status.label}
+                      </span>
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('inventory.category')}
-                </label>
-                <input
-                  type="text"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2.5 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder={t('inventory.categoryPlaceholder', 'e.g., Vegetables, Meat')}
-                />
-              </div>
+                    {/* Stock Info */}
+                    <div className="mb-6">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-gray-600">Current Stock</span>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-gray-900">{item.current_stock}</div>
+                          <div className="text-sm text-gray-600">{item.unit}</div>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div 
+                          className={`h-2.5 rounded-full ${
+                            item.current_stock === 0 ? 'bg-red-500' :
+                            item.current_stock <= item.minimum_stock ? 'bg-orange-500' : 'bg-green-500'
+                          }`}
+                          style={{ width: `${stockPercentage}%` }}
+                        ></div>
+                      </div>
+                      
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>0</span>
+                        <span>Min: {item.minimum_stock}</span>
+                        <span>{Math.round(item.minimum_stock * 3)}</span>
+                      </div>
+                    </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('inventory.currentStock')}
-                  </label>
-                  <input
-                    type="number"
-                    name="currentStock"
-                    min="0"
-                    value={formData.currentStock}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                    {/* Details */}
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs text-gray-600">Min Stock</p>
+                        <p className="font-semibold text-gray-900">{item.minimum_stock} {item.unit}</p>
+                      </div>
+                      
+                      {item.cost_per_unit > 0 && (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-600">Cost</p>
+                          <p className="font-semibold text-gray-900">
+                            ${item.cost_per_unit.toFixed(2)} / {item.unit}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('inventory.minStock')}
-                  </label>
-                  <input
-                    type="number"
-                    name="minStock"
-                    min="0"
-                    value={formData.minStock}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2.5 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
+              );
+            })
+          ) : (
+            <div className="col-span-full py-16 text-center">
+              <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                {searchQuery || filter !== 'all' 
+                  ? 'No items found'
+                  : 'No inventory items'}
+              </h4>
+              <p className="text-gray-600">
+                {searchQuery || filter !== 'all' 
+                  ? 'Try adjusting your search or filter'
+                  : 'Inventory items will appear here'}
+              </p>
             </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('inventory.unit')}
-                </label>
-                <select
-                  name="unit"
-                  value={formData.unit}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2.5 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {units.map(unit => (
-                    <option key={unit} value={unit}>{unit}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('inventory.cost')} ({t('inventory.perUnit')})
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                  <input
-                    type="number"
-                    name="cost"
-                    min="0"
-                    step="0.01"
-                    value={formData.cost}
-                    onChange={handleInputChange}
-                    className="w-full pl-8 pr-4 py-2.5 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-6">
-                <button
-                  onClick={editingId ? handleUpdateItem : handleAddItem}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {editingId ? t('inventory.update') : t('inventory.add')}
-                </button>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* Inventory Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
-                  {t('inventory.item')}
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
-                  {t('inventory.currentStock')}
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
-                  {t('inventory.minStock')}
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
-                  {t('inventory.unit')}
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
-                  {t('inventory.status')}
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
-                  {t('inventory.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredInventory.length > 0 ? (
-                filteredInventory.map((item) => {
-                  const status = getStockStatus(item);
-                  
-                  return (
-                    <tr key={item.id} className="hover:bg-gray-50 transition">
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="font-semibold text-gray-900">{item.name}</p>
-                          {item.category && (
-                            <p className="text-xs text-gray-600 mt-1">{item.category}</p>
-                          )}
-                          {item.cost > 0 && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              ${item.cost.toFixed(2)} {t('inventory.perUnit')}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-gray-900 font-medium">{item.currentStock}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-gray-900">{item.minStock}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-gray-900">{item.unit}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${status.color}`}>
-                          {status.label}
-                        </span>
-                        <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5">
-                          <div 
-                            className={`h-1.5 rounded-full ${
-                              item.currentStock === 0 ? 'bg-red-500' :
-                              item.currentStock <= item.minStock ? 'bg-orange-500' : 'bg-green-500'
-                            }`}
-                            style={{ 
-                              width: `${Math.min(100, (item.currentStock / (item.minStock * 3 || 1)) * 100)}%` 
-                            }}
-                          ></div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleEditItem(item)}
-                            className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                            title={t('inventory.edit')}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id, item.name)}
-                            className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
-                            title={t('inventory.delete')}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
+      {/* Inventory List View */}
+      {viewMode === 'list' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center">
-                    <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      {searchQuery || filter !== 'all'
-                        ? t('inventory.noResults')
-                        : t('inventory.emptyDescription')}
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      {t('inventory.emptyDescription', 'No inventory items found. Add your first item to get started.')}
-                    </p>
-                    <button
-                      onClick={() => setIsAdding(true)}
-                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors inline-flex items-center"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      {t('inventory.addFirstItem')}
-                    </button>
-                  </td>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                    Item
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                    Stock
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                    Min Stock
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                    Unit
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                    Status
+                  </th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredInventory.length > 0 ? (
+                  filteredInventory.map((item) => {
+                    const status = getStockStatus(item);
+                    
+                    return (
+                      <tr key={item.id} className="hover:bg-gray-50 transition">
+                        <td className="px-6 py-4">
+                          <div>
+                            <p className="font-semibold text-gray-900">{item.name}</p>
+                            {item.category && (
+                              <p className="text-xs text-gray-600 mt-1">{item.category}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-gray-900 font-medium">{item.current_stock}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-gray-900">{item.minimum_stock}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-gray-900">{item.unit}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${status.color}`}>
+                            {status.icon} {status.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-12 text-center">
+                      <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        {searchQuery || filter !== 'all'
+                          ? 'No items found'
+                          : 'No inventory items'}
+                      </h3>
+                      <p className="text-gray-600">
+                        {searchQuery || filter !== 'all'
+                          ? 'Try adjusting your search or filter'
+                          : 'Inventory items will appear here'}
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
