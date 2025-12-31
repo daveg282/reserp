@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/auth-context';
 import Image from 'next/image';
+export const dynamic = 'force-dynamic';
 
 export default function ProfessionalLoginPage() {
   const [formData, setFormData] = useState({
