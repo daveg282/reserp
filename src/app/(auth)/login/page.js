@@ -39,7 +39,7 @@ export default function ProfessionalLoginPage() {
 
   const checkBackendConnection = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/health', {
+      const response = await fetch('https://vortex-admin-kuku.pro.et/api/health', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
