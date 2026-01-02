@@ -476,17 +476,14 @@ const placeOrder = async (customerName = '') => {
     return (
       <div className="flex h-screen bg-gray-50 overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <TopBar 
-            activeView="daily-orders"
-            cart={cart}
-            setShowCart={setShowCart}
-            selectedTable={selectedTable}
-            setSelectedTable={setSelectedTable}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            showSearch={showSearch}
-            setShowSearch={setShowSearch}
-          />
+         <TopBar 
+  activeView="daily-orders"
+  cart={cart}
+  setShowCart={setShowCart}
+  selectedTable={selectedTable}
+  setSelectedTable={setSelectedTable}
+  setSidebarOpen={setSidebarOpen} // Add this
+/>
           <div className="flex-1 overflow-y-auto p-3 lg:p-6 xl:p-8">
             <DailyOrders 
               orders={orders}
@@ -520,17 +517,18 @@ const placeOrder = async (customerName = '') => {
       />
       
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <TopBar 
-          activeView={activeView}
-          cart={cart}
-          setShowCart={setShowCart}
-          selectedTable={selectedTable}
-          setSelectedTable={setSelectedTable}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          showSearch={showSearch}
-          setShowSearch={setShowSearch}
-        />
+      <TopBar 
+  activeView={activeView}
+  cart={cart}
+  setShowCart={setShowCart}
+  selectedTable={selectedTable}
+  setSelectedTable={setSelectedTable}
+  searchTerm={searchTerm}
+  setSearchTerm={setSearchTerm}
+  showSearch={showSearch}
+  setShowSearch={setShowSearch}
+  setSidebarOpen={setSidebarOpen} // Add this
+/>
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-6 xl:p-8">
           {error.tables && activeView === 'tables' && (

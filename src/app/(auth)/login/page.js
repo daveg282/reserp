@@ -85,67 +85,50 @@ export default function ProfessionalLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
       <div className="w-full max-w-6xl flex bg-white rounded-2xl shadow-2xl overflow-hidden">
         {/* Left Side - Brand/Info */}
-        <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-gray-900 to-gray-800 p-12 flex-col justify-between relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-5"></div>
+        <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-gray-900 to-gray-800 p-12 flex-col justify-center relative overflow-hidden">
           
           <div className="relative z-10">
             <div className="flex items-center space-x-4 mb-8">
               <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
+              <img 
+             src="/InernetFBIG.png" 
+              alt="InerNett Logo" 
+             className="rounded-lg"
+             />
+
               </div>
-              <div>
+              <div >
                 <h1 className="text-2xl font-bold text-white">InerNett</h1>
                 <p className="text-gray-300 text-sm">Restaurant Management</p>
               </div>
             </div>
 
             <h2 className="text-3xl font-bold text-white mb-4">
-              Enterprise Restaurant Platform
+               Restaurant Management Platform
             </h2>
             <p className="text-gray-300 mb-8">
               Streamline operations, increase efficiency, and deliver exceptional guest experiences with our comprehensive management solution.
             </p>
           </div>
 
-          <div className="relative z-10">
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="flex-1 h-px bg-gray-700"></div>
-              <span className="text-gray-400 text-sm">Trusted by 500+ restaurants</span>
-              <div className="flex-1 h-px bg-gray-700"></div>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-3 bg-gray-800/50 rounded-lg backdrop-blur-sm">
-                <div className="text-2xl font-bold text-white">24/7</div>
-                <div className="text-xs text-gray-400">Support</div>
-              </div>
-              <div className="text-center p-3 bg-gray-800/50 rounded-lg backdrop-blur-sm">
-                <div className="text-2xl font-bold text-white">99.9%</div>
-                <div className="text-xs text-gray-400">Uptime</div>
-              </div>
-              <div className="text-center p-3 bg-gray-800/50 rounded-lg backdrop-blur-sm">
-                <div className="text-2xl font-bold text-white">ISO</div>
-                <div className="text-xs text-gray-400">Certified</div>
-              </div>
-            </div>
-          </div>
+        
         </div>
 
         {/* Right Side - Login Form */}
         <div className="flex-1 p-8 lg:p-12">
           <div className="max-w-md mx-auto">
             {/* Header */}
-            <div className="text-center lg:text-left mb-10">
+            <div className="text-center lg:text-left mb-6">
               <div className="lg:hidden flex items-center justify-center mb-6">
                 <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
+                 <img 
+             src="/InernetFBIG.png" 
+              alt="InerNett Logo" 
+             className="rounded-lg"
+             />
                 </div>
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -219,13 +202,6 @@ export default function ProfessionalLoginPage() {
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                     Password
                   </label>
-                  <button
-                    type="button"
-                    className="text-sm text-gray-600 hover:text-gray-900 font-medium"
-                    onClick={() => {/* Add forgot password */}}
-                  >
-                    Forgot password?
-                  </button>
                 </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -248,17 +224,6 @@ export default function ProfessionalLoginPage() {
                 </div>
               </div>
 
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-gray-900 focus:ring-gray-900 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-3 block text-sm text-gray-700">
-                  Remember this device for 30 days
-                </label>
-              </div>
 
               <button
                 type="submit"
@@ -282,36 +247,8 @@ export default function ProfessionalLoginPage() {
                 )}
               </button>
 
-              {backendStatus === 'error' && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-start">
-                    <svg className="w-5 h-5 text-amber-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.73 0L4.282 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    <div>
-                      <p className="font-medium text-amber-800">Connection Required</p>
-                      <p className="text-amber-700 text-sm mt-1">
-                        Ensure backend server is running on <code className="bg-amber-100 px-1.5 py-0.5 rounded text-xs">localhost:8000</code>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              
             </form>
-
-            {/* Security Notice */}
-            <div className="mt-10 pt-8 border-t border-gray-200">
-              <div className="flex items-center justify-center text-gray-500 text-sm">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                <span>Enterprise-grade security • HIPAA & GDPR compliant</span>
-              </div>
-              <div className="text-center text-xs text-gray-400 mt-4">
-                <p>© {new Date().getFullYear()} InerNett Restaurant Systems. All rights reserved.</p>
-                <p className="mt-1">Version 3.2.1 • Build #2024-01</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
