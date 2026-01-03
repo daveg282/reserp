@@ -399,10 +399,38 @@ export default function ChefDashboard() {
       setMenuItemsLoading(false);
     }
   };
-  const handleLogout = async () => {
-    setIsLoading(true);
-    await logout();
-  };
+ // In page.js, replace the handleLogout function with this:
+const handleLogout = async () => {
+  try {
+    // Clear all local state
+    setOrders([]);
+    setIngredients([]);
+    setMenuItems([]);
+    setStations([]);
+    
+    // Clear tokens and storage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Use auth context logout
+    if (logout) {
+      await logout();
+    } else {
+      // Fallback if logout not available
+      AuthService.clearToken();
+      // Redirect to login page
+      window.location.href = '/chef/login';
+    }
+    
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Force cleanup on error
+    localStorage.clear();
+    sessionStorage.clear();
+    AuthService.clearToken();
+    window.location.href = '/chef/login';
+  }
+};
   // Test API connection for debugging
   const testApiConnection = async () => {
     const token = AuthService.getToken();
@@ -994,6 +1022,7 @@ export default function ChefDashboard() {
         isLoading={ordersLoading || stationsLoading || ingredientsLoading || menuItemsLoading}
         onLogout={handleLogout}
         onRefresh={handleRefresh}
+        user={user} 
       />
 
       {/* Main Content */}
