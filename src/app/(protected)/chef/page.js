@@ -132,160 +132,37 @@ export default function ChefDashboard() {
   // ============================================
   // Fetch real ingredients data for chef
   // ============================================
-  const fetchChefIngredients = async () => {
-    const token = AuthService.getToken();
-    
-    if (!token) {
-      console.error('❌ No token found for ingredients fetch');
-      setIngredientsError('Authentication required');
-      setIngredients([]);
-      return;
-    }
+  // ============================================
+// Fetch real ingredients data for chef
+// ============================================
+const fetchChefIngredients = async () => {
+  const token = AuthService.getToken();
+  
+  if (!token) {
+    console.error('❌ No token found for ingredients fetch');
+    setIngredientsError('Authentication required');
+    setIngredients([]);
+    return;
+  }
 
-    if (!['admin', 'manager', 'chef'].includes(user?.role)) {
-      console.log('ℹ️ User not authorized for ingredients API');
-      setIngredients([]);
-      return;
-    }
+  if (!['admin', 'manager', 'chef'].includes(user?.role)) {
+    console.log('ℹ️ User not authorized for ingredients API');
+    setIngredients([]);
+    return;
+  }
+  
+  setIngredientsLoading(true);
+  setIngredientsError(null);
+  
+  try {
+    console.log('📡 Fetching chef ingredients via API wrapper...');
     
-    setIngredientsLoading(true);
-    setIngredientsError(null);
+    // USE THE API WRAPPER INSTEAD OF DIRECT FETCH
+    const ingredientsData = await chefInventoryAPI.getIngredients(token);
+    console.log('📊 Ingredients data from API:', ingredientsData);
     
-    try {
-      console.log('📡 Fetching chef ingredients via direct API call...');
-      
-      // DIRECT FETCH to bypass any API wrapper issues
-      const response = await fetch('http://localhost:8000/api/inventory/ingredients', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-      
-      console.log('📊 Response status:', response.status, response.statusText);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('📊 Full API response:', data);
-      
-      // Validate response structure
-      let ingredientsData = [];
-      
-      if (data.success === true) {
-        if (Array.isArray(data.data)) {
-          ingredientsData = data.data;
-          console.log(`✅ Got ${ingredientsData.length} ingredients from data.data`);
-        } else if (Array.isArray(data)) {
-          ingredientsData = data;
-          console.log(`✅ Got ${ingredientsData.length} ingredients from root array`);
-        } else if (data.ingredients && Array.isArray(data.ingredients)) {
-          ingredientsData = data.ingredients;
-          console.log(`✅ Got ${ingredientsData.length} ingredients from data.ingredients`);
-        } else {
-          console.warn('⚠️ Unexpected data structure:', data);
-        }
-      } else if (Array.isArray(data)) {
-        ingredientsData = data;
-        console.log(`✅ Got ${ingredientsData.length} ingredients from root array`);
-      } else {
-        console.warn('⚠️ API returned unsuccessful or unexpected format:', data);
-        throw new Error(data.error || 'Invalid response from server');
-      }
-      
-      if (ingredientsData.length === 0) {
-        console.warn('⚠️ API returned empty ingredients array');
-        // Try alternative endpoint as fallback
-        await tryAlternativeIngredientsEndpoint(token);
-        return;
-      }
-      
-      console.log('📊 Sample ingredient:', ingredientsData[0]);
-      
-      // ============================================
-      // CALCULATE STATS for InventoryView component
-      // ============================================
-      const stats = {
-        totalItems: ingredientsData.length,
-        lowStock: ingredientsData.filter(item => {
-          const current = parseFloat(item.current_stock) || 0;
-          const minimum = parseFloat(item.minimum_stock) || 0;
-          return current > 0 && current <= minimum;
-        }).length,
-        outOfStock: ingredientsData.filter(item => 
-          (parseFloat(item.current_stock) || 0) === 0
-        ).length,
-        totalValue: ingredientsData.reduce((sum, item) => {
-          const cost = parseFloat(item.cost_per_unit) || 0;
-          const stock = parseFloat(item.current_stock) || 0;
-          const itemValue = cost * stock;
-          return sum + itemValue;
-        }, 0)
-      };
-      
-      console.log('📊 Calculated stats:', stats);
-      
-      // ============================================
-      // TRANSFORM DATA for InventoryView component
-      // InventoryView expects: inventory prop with array of items
-      // Each item needs: id, name, unit, current_stock, minimum_stock, 
-      // cost_per_unit, category, stock_status, etc.
-      // ============================================
-      const processedIngredients = ingredientsData.map(ingredient => {
-        const currentStock = parseFloat(ingredient.current_stock) || 0;
-        const minimumStock = parseFloat(ingredient.minimum_stock) || 10;
-        const costPerUnit = parseFloat(ingredient.cost_per_unit) || 0;
-        
-        // Determine stock status
-        let stockStatus = 'Adequate';
-        if (currentStock === 0) {
-          stockStatus = 'Out of Stock';
-        } else if (currentStock <= minimumStock) {
-          stockStatus = 'Low Stock';
-        }
-        
-        // Calculate stock percentage
-        const maxStock = Math.max(minimumStock * 3, currentStock);
-        const stockPercentage = Math.min(100, (currentStock / maxStock) * 100);
-        
-        // Calculate stock value
-        const stockValue = costPerUnit * currentStock;
-        
-        return {
-          id: ingredient.id,
-          name: ingredient.name || 'Unnamed Ingredient',
-          description: ingredient.description || '',
-          category: ingredient.category || 'Uncategorized',
-          unit: ingredient.unit || 'unit',
-          current_stock: currentStock,
-          minimum_stock: minimumStock,
-          cost_per_unit: costPerUnit,
-          supplier_id: ingredient.supplier_id,
-          supplier_name: ingredient.supplier_name || ingredient.supplier,
-          status: ingredient.status || 'active',
-          location: ingredient.location || '',
-          notes: ingredient.notes || '',
-          created_at: ingredient.created_at,
-          updated_at: ingredient.updated_at,
-          stock_status: ingredient.stock_status || stockStatus,
-          stock_percentage: ingredient.stock_percentage || stockPercentage,
-          stock_value: ingredient.stock_value || stockValue
-        };
-      });
-      
-      setIngredients(processedIngredients);
-      setIngredientStats(stats);
-      console.log('✅ Chef ingredients loaded successfully!');
-      console.log(`📊 Processed ${processedIngredients.length} ingredients`);
-      
-    } catch (err) {
-      console.error('❌ Error fetching chef ingredients:', err);
-      console.error('Error stack:', err.stack);
-      setIngredientsError(`Failed to load ingredients: ${err.message}`);
+    if (!ingredientsData || ingredientsData.length === 0) {
+      console.warn('⚠️ API returned empty ingredients array');
       setIngredients([]);
       setIngredientStats({
         totalItems: 0,
@@ -293,10 +170,98 @@ export default function ChefDashboard() {
         outOfStock: 0,
         totalValue: 0
       });
-    } finally {
-      setIngredientsLoading(false);
+      return;
     }
-  };
+    
+    console.log(`✅ Got ${ingredientsData.length} ingredients`);
+    console.log('📊 Sample ingredient:', ingredientsData[0]);
+    
+    // ============================================
+    // CALCULATE STATS for InventoryView component
+    // ============================================
+    const stats = {
+      totalItems: ingredientsData.length,
+      lowStock: ingredientsData.filter(item => {
+        const current = parseFloat(item.current_stock) || 0;
+        const minimum = parseFloat(item.minimum_stock) || 0;
+        return current > 0 && current <= minimum;
+      }).length,
+      outOfStock: ingredientsData.filter(item => 
+        (parseFloat(item.current_stock) || 0) === 0
+      ).length,
+      totalValue: ingredientsData.reduce((sum, item) => {
+        const cost = parseFloat(item.cost_per_unit) || 0;
+        const stock = parseFloat(item.current_stock) || 0;
+        const itemValue = cost * stock;
+        return sum + itemValue;
+      }, 0)
+    };
+    
+    console.log('📊 Calculated stats:', stats);
+    
+    // ============================================
+    // TRANSFORM DATA for InventoryView component
+    // ============================================
+    const processedIngredients = ingredientsData.map(ingredient => {
+      const currentStock = parseFloat(ingredient.current_stock) || 0;
+      const minimumStock = parseFloat(ingredient.minimum_stock) || 10;
+      const costPerUnit = parseFloat(ingredient.cost_per_unit) || 0;
+      
+      // Determine stock status
+      let stockStatus = 'Adequate';
+      if (currentStock === 0) {
+        stockStatus = 'Out of Stock';
+      } else if (currentStock <= minimumStock) {
+        stockStatus = 'Low Stock';
+      }
+      
+      // Calculate stock percentage
+      const maxStock = Math.max(minimumStock * 3, currentStock);
+      const stockPercentage = Math.min(100, (currentStock / maxStock) * 100);
+      
+      // Calculate stock value
+      const stockValue = costPerUnit * currentStock;
+      
+      return {
+        id: ingredient.id,
+        name: ingredient.name || 'Unnamed Ingredient',
+        description: ingredient.description || '',
+        category: ingredient.category || 'Uncategorized',
+        unit: ingredient.unit || 'unit',
+        current_stock: currentStock,
+        minimum_stock: minimumStock,
+        cost_per_unit: costPerUnit,
+        supplier_id: ingredient.supplier_id,
+        supplier_name: ingredient.supplier_name || ingredient.supplier,
+        status: ingredient.status || 'active',
+        location: ingredient.location || '',
+        notes: ingredient.notes || '',
+        created_at: ingredient.created_at,
+        updated_at: ingredient.updated_at,
+        stock_status: ingredient.stock_status || stockStatus,
+        stock_percentage: ingredient.stock_percentage || stockPercentage,
+        stock_value: ingredient.stock_value || stockValue
+      };
+    });
+    
+    setIngredients(processedIngredients);
+    setIngredientStats(stats);
+    console.log('✅ Chef ingredients loaded successfully!');
+    
+  } catch (err) {
+    console.error('❌ Error fetching chef ingredients:', err);
+    setIngredientsError(`Failed to load ingredients: ${err.message}`);
+    setIngredients([]);
+    setIngredientStats({
+      totalItems: 0,
+      lowStock: 0,
+      outOfStock: 0,
+      totalValue: 0
+    });
+  } finally {
+    setIngredientsLoading(false);
+  }
+};
 
   // Alternative endpoint fallback
   const tryAlternativeIngredientsEndpoint = async (token) => {
