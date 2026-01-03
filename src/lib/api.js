@@ -1803,28 +1803,65 @@ export const chefInventoryAPI = {
   // ========== INGREDIENTS (READ ONLY) ==========
   
   // Get all ingredients for chef (read only)
-  async getIngredients(token) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/inventory/ingredients`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch ingredients');
-      }
-      
-      const data = await response.json();
-      return data.ingredients || [];
-      
-    } catch (error) {
-      console.error('Get ingredients error:', error);
-      throw error;
+  // Get all ingredients for chef (read only) - FIXED VERSION
+async getIngredients(token) {
+  try {
+    console.log('📡 chefInventoryAPI.getIngredients called');
+    
+    const response = await fetch(`${API_BASE_URL}/inventory/ingredients`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      },
+    });
+    
+    console.log('📊 Response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Failed to fetch ingredients: ${errorData.error || `HTTP ${response.status}`}`);
     }
-  },
+    
+    const data = await response.json();
+    console.log('📊 Full API response:', data);
+    
+    // Handle different response structures like in your working direct fetch
+    let ingredientsData = [];
+    
+    if (data.success === true) {
+      if (Array.isArray(data.data)) {
+        ingredientsData = data.data;
+        console.log(`✅ Got ${ingredientsData.length} ingredients from data.data`);
+      } else if (Array.isArray(data)) {
+        ingredientsData = data;
+        console.log(`✅ Got ${ingredientsData.length} ingredients from root array`);
+      } else if (data.ingredients && Array.isArray(data.ingredients)) {
+        ingredientsData = data.ingredients;
+        console.log(`✅ Got ${ingredientsData.length} ingredients from data.ingredients`);
+      } else {
+        console.warn('⚠️ Unexpected data structure:', data);
+        throw new Error('Invalid response structure from server');
+      }
+    } else if (Array.isArray(data)) {
+      ingredientsData = data;
+      console.log(`✅ Got ${ingredientsData.length} ingredients from root array`);
+    } else if (data.ingredients && Array.isArray(data.ingredients)) {
+      ingredientsData = data.ingredients;
+      console.log(`✅ Got ${ingredientsData.length} ingredients from data.ingredients`);
+    } else {
+      console.warn('⚠️ API returned unsuccessful or unexpected format:', data);
+      throw new Error(data.error || 'Invalid response from server');
+    }
+    
+    console.log(`✅ chefInventoryAPI returning ${ingredientsData.length} ingredients`);
+    return ingredientsData;
+    
+  } catch (error) {
+    console.error('❌ Get ingredients error:', error);
+    throw error;
+  }
+},
 
   // Get ingredient by ID for chef
   async getIngredient(id, token) {
