@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/auth-context';
-import { kitchenAPI, stationsAPI, chefInventoryAPI, menuAPI, } from '../../../lib/api';
+import { kitchenAPI, stationsAPI, chefInventoryAPI, menuAPI } from '../../../lib/api';
 import AuthService from '@/lib/auth-utils';
 
 // Import components
@@ -12,7 +12,7 @@ import DashboardView from '../../../components/chef/DashboardView';
 import OrdersView from '../../../components/chef/OrderView';
 import StationsView from '../../../components/chef/StationsView';
 import InventoryView from '../../../components/chef/InventoryView';
-import IngredientsView from '../../../components/chef/IngredientsView'; // Added this line
+import IngredientsView from '../../../components/chef/IngredientsView';
 import ReportsView from '../../../components/chef/ReportsView';
 import SettingsView from '../../../components/chef/SettingsView';
 import OrderDetailModal from '../../../components/chef/OrderDetailModal';
@@ -60,7 +60,7 @@ export default function ChefDashboard() {
   // State declarations
   const [orders, setOrders] = useState([]);
   const [ingredients, setIngredients] = useState([]);
-  const [menuItems, setMenuItems] = useState([]); // Added for IngredientsView
+  const [menuItems, setMenuItems] = useState([]);
   const [ingredientStats, setIngredientStats] = useState({
     totalItems: 0,
     lowStock: 0,
@@ -74,6 +74,7 @@ export default function ChefDashboard() {
     avgPrepTime: 0,
     delayed: 0
   });
+  const [kitchenReportData, setKitchenReportData] = useState(null); // New state for report data
   const [filter, setFilter] = useState('active');
   const [stationFilter, setStationFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -85,13 +86,15 @@ export default function ChefDashboard() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [stationsLoading, setStationsLoading] = useState(false);
   const [ingredientsLoading, setIngredientsLoading] = useState(false);
-  const [menuItemsLoading, setMenuItemsLoading] = useState(false); // Added
+  const [menuItemsLoading, setMenuItemsLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false); // New loading state for reports
   
   // Error states
   const [ordersError, setOrdersError] = useState(null);
   const [stationsError, setStationsError] = useState(null);
   const [ingredientsError, setIngredientsError] = useState(null);
-  const [menuItemsError, setMenuItemsError] = useState(null); // Added
+  const [menuItemsError, setMenuItemsError] = useState(null);
+  const [reportError, setReportError] = useState(null); // New error state for reports
 
   // Enhanced transform function with better error handling
   const transformBackendOrders = (backendOrders) => {
@@ -129,40 +132,237 @@ export default function ChefDashboard() {
     }).filter(Boolean);
   };
 
-  // ============================================
-  // Fetch real ingredients data for chef
-  // ============================================
-  // ============================================
-// Fetch real ingredients data for chef
-// ============================================
-const fetchChefIngredients = async () => {
-  const token = AuthService.getToken();
-  
-  if (!token) {
-    console.error('❌ No token found for ingredients fetch');
-    setIngredientsError('Authentication required');
-    setIngredients([]);
-    return;
-  }
+  // Transform kitchen stats data for ReportsView
+  const transformKitchenStatsData = (apiData) => {
+    try {
+      console.log('🔄 Transforming kitchen stats data for ReportsView:', apiData);
+      
+      if (!apiData || !apiData.stats) {
+        console.warn('⚠️ No stats data in API response');
+        return {
+          reportDate: new Date().toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          }),
+          total_orders_today: 0,
+          pending_orders: 0,
+          preparing_orders: 0,
+          ready_orders: 0,
+          ordersPrepared: 0,
+          avgPrepTime: 0,
+          popularDishes: [],
+          efficiency: {
+            orderAccuracy: 0,
+            onTimeDelivery: 0
+          }
+        };
+      }
+      
+      const stats = apiData.stats;
+      const today = new Date().toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      // Calculate orders prepared (pending + preparing)
+      const ordersPrepared = (stats.pending_orders || 0) + (stats.preparing_orders || 0);
+      
+      // Prepare popular dishes from API response
+      let popularDishes = [];
+      if (apiData.popular_items && Array.isArray(apiData.popular_items)) {
+        popularDishes = apiData.popular_items.map(item => ({
+          name: item.menu_item_name || item.name || 'Unknown Dish',
+          orders: item.order_count || 0
+        })).slice(0, 5); // Top 5 only
+      }
+      
+      // Mock efficiency metrics (in a real app, this would come from the API)
+      const efficiency = {
+        orderAccuracy: Math.min(100, Math.floor(Math.random() * 10) + 90), // 90-99%
+        onTimeDelivery: Math.min(100, Math.floor(Math.random() * 15) + 85) // 85-99%
+      };
+      
+      const transformedData = {
+        reportDate: today,
+        total_orders_today: stats.total_orders_today || 0,
+        pending_orders: stats.pending_orders || 0,
+        preparing_orders: stats.preparing_orders || 0,
+        ready_orders: stats.ready_orders || 0,
+        ordersPrepared: ordersPrepared,
+        avgPrepTime: stats.avg_preparation_time || stats.avgPrepTime || 0,
+        popularDishes: popularDishes,
+        efficiency: efficiency
+      };
+      
+      console.log('✅ Transformed report data:', transformedData);
+      return transformedData;
+      
+    } catch (error) {
+      console.error('❌ Error transforming kitchen stats:', error);
+      return {
+        reportDate: new Date().toLocaleDateString(),
+        total_orders_today: 0,
+        pending_orders: 0,
+        preparing_orders: 0,
+        ready_orders: 0,
+        ordersPrepared: 0,
+        avgPrepTime: 0,
+        popularDishes: [],
+        efficiency: {
+          orderAccuracy: 0,
+          onTimeDelivery: 0
+        }
+      };
+    }
+  };
 
-  if (!['admin', 'manager', 'chef'].includes(user?.role)) {
-    console.log('ℹ️ User not authorized for ingredients API');
-    setIngredients([]);
-    return;
-  }
-  
-  setIngredientsLoading(true);
-  setIngredientsError(null);
-  
-  try {
-    console.log('📡 Fetching chef ingredients via API wrapper...');
+  // Fetch kitchen statistics for reports
+  const fetchKitchenReportData = async () => {
+    const token = AuthService.getToken();
     
-    // USE THE API WRAPPER INSTEAD OF DIRECT FETCH
-    const ingredientsData = await chefInventoryAPI.getIngredients(token);
-    console.log('📊 Ingredients data from API:', ingredientsData);
+    if (!token) {
+      console.error('❌ No token found for kitchen report');
+      setReportError('Authentication required');
+      return;
+    }
+
+    if (!user || !['chef', 'admin', 'manager'].includes(user?.role)) {
+      console.error('❌ User role not authorized:', user?.role);
+      setReportError('Access Denied: Chef, manager, or admin role required.');
+      return;
+    }
     
-    if (!ingredientsData || ingredientsData.length === 0) {
-      console.warn('⚠️ API returned empty ingredients array');
+    setReportLoading(true);
+    setReportError(null);
+    
+    try {
+      console.log('📊 Fetching kitchen stats for reports...');
+      
+      const apiResponse = await kitchenAPI.getKitchenStats(token);
+      console.log('📊 Raw kitchen stats API response:', apiResponse);
+      
+      const transformedData = transformKitchenStatsData(apiResponse);
+      setKitchenReportData(transformedData);
+      
+      console.log('✅ Kitchen report data loaded successfully');
+      
+    } catch (err) {
+      console.error('❌ Error fetching kitchen report data:', err);
+      setReportError(err.message || 'Failed to load kitchen statistics');
+      // Set empty report data on error
+      setKitchenReportData(transformKitchenStatsData(null));
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  // Fetch real ingredients data for chef
+  const fetchChefIngredients = async () => {
+    const token = AuthService.getToken();
+    
+    if (!token) {
+      console.error('❌ No token found for ingredients fetch');
+      setIngredientsError('Authentication required');
+      setIngredients([]);
+      return;
+    }
+
+    if (!['admin', 'manager', 'chef'].includes(user?.role)) {
+      console.log('ℹ️ User not authorized for ingredients API');
+      setIngredients([]);
+      return;
+    }
+    
+    setIngredientsLoading(true);
+    setIngredientsError(null);
+    
+    try {
+      console.log('📡 Fetching chef ingredients via API wrapper...');
+      
+      const ingredientsData = await chefInventoryAPI.getIngredients(token);
+      console.log('📊 Ingredients data from API:', ingredientsData);
+      
+      if (!ingredientsData || ingredientsData.length === 0) {
+        console.warn('⚠️ API returned empty ingredients array');
+        setIngredients([]);
+        setIngredientStats({
+          totalItems: 0,
+          lowStock: 0,
+          outOfStock: 0,
+          totalValue: 0
+        });
+        return;
+      }
+      
+      console.log(`✅ Got ${ingredientsData.length} ingredients`);
+      
+      const stats = {
+        totalItems: ingredientsData.length,
+        lowStock: ingredientsData.filter(item => {
+          const current = parseFloat(item.current_stock) || 0;
+          const minimum = parseFloat(item.minimum_stock) || 0;
+          return current > 0 && current <= minimum;
+        }).length,
+        outOfStock: ingredientsData.filter(item => 
+          (parseFloat(item.current_stock) || 0) === 0
+        ).length,
+        totalValue: ingredientsData.reduce((sum, item) => {
+          const cost = parseFloat(item.cost_per_unit) || 0;
+          const stock = parseFloat(item.current_stock) || 0;
+          const itemValue = cost * stock;
+          return sum + itemValue;
+        }, 0)
+      };
+      
+      const processedIngredients = ingredientsData.map(ingredient => {
+        const currentStock = parseFloat(ingredient.current_stock) || 0;
+        const minimumStock = parseFloat(ingredient.minimum_stock) || 10;
+        const costPerUnit = parseFloat(ingredient.cost_per_unit) || 0;
+        
+        let stockStatus = 'Adequate';
+        if (currentStock === 0) {
+          stockStatus = 'Out of Stock';
+        } else if (currentStock <= minimumStock) {
+          stockStatus = 'Low Stock';
+        }
+        
+        const maxStock = Math.max(minimumStock * 3, currentStock);
+        const stockPercentage = Math.min(100, (currentStock / maxStock) * 100);
+        const stockValue = costPerUnit * currentStock;
+        
+        return {
+          id: ingredient.id,
+          name: ingredient.name || 'Unnamed Ingredient',
+          description: ingredient.description || '',
+          category: ingredient.category || 'Uncategorized',
+          unit: ingredient.unit || 'unit',
+          current_stock: currentStock,
+          minimum_stock: minimumStock,
+          cost_per_unit: costPerUnit,
+          supplier_id: ingredient.supplier_id,
+          supplier_name: ingredient.supplier_name || ingredient.supplier,
+          status: ingredient.status || 'active',
+          location: ingredient.location || '',
+          notes: ingredient.notes || '',
+          created_at: ingredient.created_at,
+          updated_at: ingredient.updated_at,
+          stock_status: ingredient.stock_status || stockStatus,
+          stock_percentage: ingredient.stock_percentage || stockPercentage,
+          stock_value: ingredient.stock_value || stockValue
+        };
+      });
+      
+      setIngredients(processedIngredients);
+      setIngredientStats(stats);
+      console.log('✅ Chef ingredients loaded successfully!');
+      
+    } catch (err) {
+      console.error('❌ Error fetching chef ingredients:', err);
+      setIngredientsError(`Failed to load ingredients: ${err.message}`);
       setIngredients([]);
       setIngredientStats({
         totalItems: 0,
@@ -170,139 +370,12 @@ const fetchChefIngredients = async () => {
         outOfStock: 0,
         totalValue: 0
       });
-      return;
-    }
-    
-    console.log(`✅ Got ${ingredientsData.length} ingredients`);
-    console.log('📊 Sample ingredient:', ingredientsData[0]);
-    
-    // ============================================
-    // CALCULATE STATS for InventoryView component
-    // ============================================
-    const stats = {
-      totalItems: ingredientsData.length,
-      lowStock: ingredientsData.filter(item => {
-        const current = parseFloat(item.current_stock) || 0;
-        const minimum = parseFloat(item.minimum_stock) || 0;
-        return current > 0 && current <= minimum;
-      }).length,
-      outOfStock: ingredientsData.filter(item => 
-        (parseFloat(item.current_stock) || 0) === 0
-      ).length,
-      totalValue: ingredientsData.reduce((sum, item) => {
-        const cost = parseFloat(item.cost_per_unit) || 0;
-        const stock = parseFloat(item.current_stock) || 0;
-        const itemValue = cost * stock;
-        return sum + itemValue;
-      }, 0)
-    };
-    
-    console.log('📊 Calculated stats:', stats);
-    
-    // ============================================
-    // TRANSFORM DATA for InventoryView component
-    // ============================================
-    const processedIngredients = ingredientsData.map(ingredient => {
-      const currentStock = parseFloat(ingredient.current_stock) || 0;
-      const minimumStock = parseFloat(ingredient.minimum_stock) || 10;
-      const costPerUnit = parseFloat(ingredient.cost_per_unit) || 0;
-      
-      // Determine stock status
-      let stockStatus = 'Adequate';
-      if (currentStock === 0) {
-        stockStatus = 'Out of Stock';
-      } else if (currentStock <= minimumStock) {
-        stockStatus = 'Low Stock';
-      }
-      
-      // Calculate stock percentage
-      const maxStock = Math.max(minimumStock * 3, currentStock);
-      const stockPercentage = Math.min(100, (currentStock / maxStock) * 100);
-      
-      // Calculate stock value
-      const stockValue = costPerUnit * currentStock;
-      
-      return {
-        id: ingredient.id,
-        name: ingredient.name || 'Unnamed Ingredient',
-        description: ingredient.description || '',
-        category: ingredient.category || 'Uncategorized',
-        unit: ingredient.unit || 'unit',
-        current_stock: currentStock,
-        minimum_stock: minimumStock,
-        cost_per_unit: costPerUnit,
-        supplier_id: ingredient.supplier_id,
-        supplier_name: ingredient.supplier_name || ingredient.supplier,
-        status: ingredient.status || 'active',
-        location: ingredient.location || '',
-        notes: ingredient.notes || '',
-        created_at: ingredient.created_at,
-        updated_at: ingredient.updated_at,
-        stock_status: ingredient.stock_status || stockStatus,
-        stock_percentage: ingredient.stock_percentage || stockPercentage,
-        stock_value: ingredient.stock_value || stockValue
-      };
-    });
-    
-    setIngredients(processedIngredients);
-    setIngredientStats(stats);
-    console.log('✅ Chef ingredients loaded successfully!');
-    
-  } catch (err) {
-    console.error('❌ Error fetching chef ingredients:', err);
-    setIngredientsError(`Failed to load ingredients: ${err.message}`);
-    setIngredients([]);
-    setIngredientStats({
-      totalItems: 0,
-      lowStock: 0,
-      outOfStock: 0,
-      totalValue: 0
-    });
-  } finally {
-    setIngredientsLoading(false);
-  }
-};
-
-  // Alternative endpoint fallback
-  const tryAlternativeIngredientsEndpoint = async (token) => {
-    try {
-      console.log('🔄 Trying alternative ingredients endpoints...');
-      
-      const endpoints = [
-        '/api/inventory/list',
-        '/api/ingredients',
-        '/api/ingredients/all',
-        '/api/inventory'
-      ];
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`Testing endpoint: ${endpoint}`);
-          const response = await fetch(`http://localhost:8000${endpoint}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log(`✅ Found working endpoint: ${endpoint}`, data);
-            // Process the data if found
-            break;
-          }
-        } catch (err) {
-          console.log(`❌ Endpoint ${endpoint} failed:`, err.message);
-        }
-      }
-    } catch (err) {
-      console.error('Alternative endpoint error:', err);
+    } finally {
+      setIngredientsLoading(false);
     }
   };
 
-  // ============================================
   // Fetch menu items for IngredientsView
-  // ============================================
   const fetchMenuItems = async () => {
     const token = AuthService.getToken();
     
@@ -325,7 +398,6 @@ const fetchChefIngredients = async () => {
     try {
       console.log('📡 Fetching menu items with recipes...');
       
-      // First try the chefInventoryAPI endpoint
       let menuItemsData = [];
       
       try {
@@ -336,11 +408,9 @@ const fetchChefIngredients = async () => {
         console.log('📊 Menu items from chefInventoryAPI:', menuItemsData);
       } catch (err) {
         console.log('🔄 Falling back to menuAPI...');
-        // Fallback to regular menuAPI
         menuItemsData = await menuAPI.getMenuItems(token);
       }
       
-      // Transform the data to match IngredientsView expectations
       const transformedMenuItems = menuItemsData.map(item => ({
         id: item.id || item.menu_item_id,
         name: item.name || item.item_name || 'Unnamed Item',
@@ -364,87 +434,34 @@ const fetchChefIngredients = async () => {
       setMenuItemsLoading(false);
     }
   };
- // In page.js, replace the handleLogout function with this:
-const handleLogout = async () => {
-  try {
-    // Clear all local state
-    setOrders([]);
-    setIngredients([]);
-    setMenuItems([]);
-    setStations([]);
-    
-    // Clear tokens and storage
-    localStorage.clear();
-    sessionStorage.clear();
-    
-    // Use auth context logout
-    if (logout) {
-      await logout();
-    } else {
-      // Fallback if logout not available
+
+  const handleLogout = async () => {
+    try {
+      setOrders([]);
+      setIngredients([]);
+      setMenuItems([]);
+      setStations([]);
+      setKitchenReportData(null);
+      
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      if (logout) {
+        await logout();
+      } else {
+        AuthService.clearToken();
+        window.location.href = '/chef/login';
+      }
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+      localStorage.clear();
+      sessionStorage.clear();
       AuthService.clearToken();
-      // Redirect to login page
       window.location.href = '/chef/login';
     }
-    
-  } catch (error) {
-    console.error('Logout error:', error);
-    // Force cleanup on error
-    localStorage.clear();
-    sessionStorage.clear();
-    AuthService.clearToken();
-    window.location.href = '/chef/login';
-  }
-};
-  // Test API connection for debugging
-  const testApiConnection = async () => {
-    const token = AuthService.getToken();
-    
-    console.log('🧪 ========== API CONNECTION TEST ==========');
-    console.log('Token exists:', !!token);
-    console.log('User role:', user?.role);
-    
-    try {
-      // Test 1: Health check
-      const healthResponse = await fetch('http://localhost:8000/api/health');
-      console.log('✅ Health check:', healthResponse.status, healthResponse.statusText);
-      
-      // Test 2: Test inventory endpoint
-      if (token) {
-        console.log('🧪 Testing /api/inventory/ingredients...');
-        const authResponse = await fetch('http://localhost:8000/api/inventory/ingredients', {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        console.log('📊 Auth response status:', authResponse.status, authResponse.statusText);
-        
-        if (authResponse.ok) {
-          const data = await authResponse.json();
-          console.log('📊 Response structure:', {
-            success: data.success,
-            hasData: !!data.data,
-            isArray: Array.isArray(data.data),
-            count: data.count,
-            length: data.data?.length,
-            message: data.message
-          });
-          
-          if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-            console.log('✅ Sample item:', data.data[0]);
-          }
-        } else {
-          console.error('❌ Auth failed:', authResponse.status, authResponse.statusText);
-        }
-      }
-    } catch (err) {
-      console.error('❌ API test failed:', err.message);
-    }
-    console.log('🧪 ========================================');
   };
-
+ 
   // Fetch kitchen orders
   const fetchKitchenData = async () => {
     const token = AuthService.getToken();
@@ -475,7 +492,6 @@ const handleLogout = async () => {
       
       setOrders(transformedOrders);
       
-      // Calculate stats
       const active = transformedOrders.filter(o => o.status !== 'completed').length;
       const completed = transformedOrders.filter(o => o.status === 'completed').length;
       
@@ -548,7 +564,6 @@ const handleLogout = async () => {
       console.log('📊 Stations data received:', stationsData);
       
       let stationsArray = [];
-      // Handle different response formats
       if (Array.isArray(stationsData)) {
         stationsArray = stationsData;
       } else if (stationsData && Array.isArray(stationsData.stations)) {
@@ -594,7 +609,6 @@ const handleLogout = async () => {
       
       console.log(`🧑‍🍳 Starting preparation for order item ${orderItemId}`);
       
-      // 1. First check if ingredients are available
       const checkResult = await chefInventoryAPI.checkOrderItemIngredients(orderItemId, token);
       console.log('📊 Check result:', checkResult);
       
@@ -621,11 +635,9 @@ const handleLogout = async () => {
         return false;
       }
       
-      // 2. If available, deduct ingredients and start preparation
       const deductionResult = await chefInventoryAPI.deductIngredients(orderItemId, token);
       console.log('📊 Deduction result:', deductionResult);
       
-      // 3. Update local state
       setOrders(prev => prev.map(order => ({
         ...order,
         items: order.items?.map(item => 
@@ -637,7 +649,6 @@ const handleLogout = async () => {
       
       console.log('✅ Preparation started:', deductionResult.message || 'Ingredients deducted');
       
-      // 4. Refresh ingredients data to show updated stock
       await fetchChefIngredients();
       
       return true;
@@ -659,12 +670,10 @@ const handleLogout = async () => {
         throw new Error('Authentication required');
       }
       
-      // Call API first
       const result = await kitchenAPI.updateOrderStatus(orderId, newStatus, token);
       console.log('📊 Update order status result:', result);
       
       if (result.success || result.message) {
-        // Update local state
         setOrders(prev => prev.map(order => {
           if (order.id === orderId) {
             const updates = { status: newStatus };
@@ -684,7 +693,6 @@ const handleLogout = async () => {
           return order;
         }));
         
-        // Refresh data to ensure consistency
         setTimeout(() => fetchKitchenData(), 1000);
       }
       
@@ -705,7 +713,6 @@ const handleLogout = async () => {
         throw new Error('Authentication required');
       }
       
-      // If starting preparation, use the inventory-aware method
       if (status === 'preparing') {
         const success = await handleStartPreparation(itemId, menuItemId);
         if (!success) return;
@@ -713,7 +720,6 @@ const handleLogout = async () => {
         await kitchenAPI.updateItemStatus(itemId, status, token);
       }
       
-      // Refresh orders to get updated status
       setTimeout(() => fetchKitchenData(), 1000);
       
     } catch (err) {
@@ -738,84 +744,79 @@ const handleLogout = async () => {
     if (activeView === 'ingredients' || activeView === 'dashboard') {
       fetchMenuItems();
     }
+    if (activeView === 'reports' || activeView === 'dashboard') {
+      fetchKitchenReportData();
+    }
   };
 
-
-
- const handleSaveRecipe = async (recipeData) => {
-  const token = AuthService.getToken();
-  
-  if (!token) {
-    alert('Authentication required');
-    return;
-  }
-
-  try {
-    console.log('💾 Saving recipe ingredients:', recipeData);
+  const handleSaveRecipe = async (recipeData) => {
+    const token = AuthService.getToken();
     
-    // Chefs can only edit recipes for existing menu items
-    if (!recipeData.menuItemId) {
-      alert('Menu item ID is required to save recipe');
+    if (!token) {
+      alert('Authentication required');
       return;
     }
-    
-    // Prepare ingredients array for bulk update
-    const ingredientsArray = recipeData.ingredients.map(ingredient => ({
-      ingredient_id: ingredient.ingredient_id,
-      quantity_required: parseFloat(ingredient.quantity_required) || 0,
-      unit: ingredient.unit,
-      notes: ingredient.notes || ''
-    }));
-    
-    console.log('📦 Bulk ingredients to add:', ingredientsArray);
-    
-    // First, clear existing ingredients
-    const existingMenuItem = menuItems.find(m => m.id === recipeData.menuItemId);
-    if (existingMenuItem && existingMenuItem.recipe && existingMenuItem.recipe.length > 0) {
-      console.log('🗑️ Clearing existing recipe ingredients...');
-      for (const ingredient of existingMenuItem.recipe) {
-        try {
-          await menuAPI.removeIngredientFromMenuItem(
-            recipeData.menuItemId,
-            ingredient.ingredient_id || ingredient.id,
-            token
-          );
-        } catch (err) {
-          console.warn('Could not remove ingredient:', err.message);
+
+    try {
+      console.log('💾 Saving recipe ingredients:', recipeData);
+      
+      if (!recipeData.menuItemId) {
+        alert('Menu item ID is required to save recipe');
+        return;
+      }
+      
+      const ingredientsArray = recipeData.ingredients.map(ingredient => ({
+        ingredient_id: ingredient.ingredient_id,
+        quantity_required: parseFloat(ingredient.quantity_required) || 0,
+        unit: ingredient.unit,
+        notes: ingredient.notes || ''
+      }));
+      
+      console.log('📦 Bulk ingredients to add:', ingredientsArray);
+      
+      const existingMenuItem = menuItems.find(m => m.id === recipeData.menuItemId);
+      if (existingMenuItem && existingMenuItem.recipe && existingMenuItem.recipe.length > 0) {
+        console.log('🗑️ Clearing existing recipe ingredients...');
+        for (const ingredient of existingMenuItem.recipe) {
+          try {
+            await menuAPI.removeIngredientFromMenuItem(
+              recipeData.menuItemId,
+              ingredient.ingredient_id || ingredient.id,
+              token
+            );
+          } catch (err) {
+            console.warn('Could not remove ingredient:', err.message);
+          }
         }
       }
-    }
-    
-    // Then add all ingredients at once using bulk endpoint
-    if (ingredientsArray.length > 0) {
-      console.log('➕ Adding new ingredients via bulk...');
-      const bulkResult = await menuAPI.addIngredientsBulk(
-        recipeData.menuItemId,
-        ingredientsArray,
-        token
-      );
       
-      if (!bulkResult || bulkResult.error) {
-        throw new Error(bulkResult?.error || 'Failed to add ingredients');
+      if (ingredientsArray.length > 0) {
+        console.log('➕ Adding new ingredients via bulk...');
+        const bulkResult = await menuAPI.addIngredientsBulk(
+          recipeData.menuItemId,
+          ingredientsArray,
+          token
+        );
+        
+        if (!bulkResult || bulkResult.error) {
+          throw new Error(bulkResult?.error || 'Failed to add ingredients');
+        }
+        
+        console.log('✅ Bulk ingredients added:', bulkResult);
       }
       
-      console.log('✅ Bulk ingredients added:', bulkResult);
+      alert('Recipe updated successfully!');
+      
+      await fetchMenuItems();
+      await fetchChefIngredients();
+      
+    } catch (err) {
+      console.error('❌ Error saving recipe:', err);
+      alert(`Failed to save recipe: ${err.message}`);
     }
-    
-    alert('Recipe updated successfully!');
-    
-    // Refresh data
-    await fetchMenuItems();
-    await fetchChefIngredients();
-    
-  } catch (err) {
-    console.error('❌ Error saving recipe:', err);
-    alert(`Failed to save recipe: ${err.message}`);
-  }
-};
+  };
 
   const handleUpdateRecipe = async (recipeData) => {
-    // Alias for handleSaveRecipe
     return handleSaveRecipe(recipeData);
   };
 
@@ -838,7 +839,6 @@ const handleLogout = async () => {
       
       alert('Recipe deleted successfully!');
       
-      // Refresh data
       await fetchMenuItems();
       
     } catch (err) {
@@ -847,14 +847,25 @@ const handleLogout = async () => {
     }
   };
 
+  // Handle time range change for reports
+  const handleTimeRangeChange = (range) => {
+    console.log('📅 Time range changed to:', range);
+    // For now, just refresh the data
+    fetchKitchenReportData();
+  };
+
+  // Handle export for reports
+  const handleExportReport = () => {
+    console.log('📤 Exporting report data...');
+    // In a real app, this would generate a PDF or CSV
+    alert('Export functionality would generate a report file');
+  };
+
   // Initialize data on component mount
   useEffect(() => {
     console.log('🧑‍🍳 Chef Dashboard mounted');
     console.log('👤 User role:', user?.role);
     console.log('🔐 AuthService token exists:', AuthService.getToken() ? 'Yes' : 'No');
-    
-    // Run API connection test
-    setTimeout(() => testApiConnection(), 500);
     
     const loadData = async () => {
       try {
@@ -862,7 +873,8 @@ const handleLogout = async () => {
           fetchKitchenData(),
           fetchStations(),
           fetchChefIngredients(),
-          fetchMenuItems() // Added this
+          fetchMenuItems(),
+          fetchKitchenReportData() // Load report data on mount
         ]);
       } catch (error) {
         console.error('❌ Error loading initial data:', error);
@@ -884,6 +896,9 @@ const handleLogout = async () => {
       if (activeView === 'ingredients' || activeView === 'dashboard') {
         fetchMenuItems();
       }
+      if (activeView === 'reports' || activeView === 'dashboard') {
+        fetchKitchenReportData();
+      }
     }, 30000);
     
     return () => clearInterval(intervalId);
@@ -901,6 +916,9 @@ const handleLogout = async () => {
     }
     if (activeView === 'ingredients' && menuItems.length === 0) {
       fetchMenuItems();
+    }
+    if (activeView === 'reports' && !kitchenReportData) {
+      fetchKitchenReportData();
     }
   }, [activeView]);
 
@@ -945,6 +963,13 @@ const handleLogout = async () => {
     }
   };
 
+  // Dismiss report error
+  const handleDismissReportError = () => {
+    setReportError(null);
+    // Set empty report data when error is dismissed
+    setKitchenReportData(transformKitchenStatsData(null));
+  };
+
   // Check if user has permission
   if (!user || !['chef', 'admin', 'manager'].includes(user.role)) {
     return (
@@ -984,7 +1009,7 @@ const handleLogout = async () => {
         setActiveView={setActiveView}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
-        isLoading={ordersLoading || stationsLoading || ingredientsLoading || menuItemsLoading}
+        isLoading={ordersLoading || stationsLoading || ingredientsLoading || menuItemsLoading || reportLoading}
         onLogout={handleLogout}
         onRefresh={handleRefresh}
         user={user} 
@@ -998,15 +1023,15 @@ const handleLogout = async () => {
           setSidebarOpen={setSidebarOpen}
           user={user}
           onRefresh={handleRefresh}
-          isLoading={ordersLoading || stationsLoading || ingredientsLoading || menuItemsLoading}
+          isLoading={ordersLoading || stationsLoading || ingredientsLoading || menuItemsLoading || reportLoading}
         />
 
         {/* Error Messages */}
-        {(ordersError || stationsError || ingredientsError || menuItemsError) && (
+        {(ordersError || stationsError || ingredientsError || menuItemsError || reportError) && (
           <div className="mx-4 mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
             <div className="flex justify-between items-center">
               <p className="text-red-700">
-                {ordersError || stationsError || ingredientsError || menuItemsError}
+                {ordersError || stationsError || ingredientsError || menuItemsError || reportError}
               </p>
               <div className="flex gap-2">
                 <button
@@ -1021,6 +1046,7 @@ const handleLogout = async () => {
                     setStationsError(null);
                     setIngredientsError(null);
                     setMenuItemsError(null);
+                    setReportError(null);
                   }}
                   className="text-red-500 hover:text-red-700"
                 >
@@ -1092,9 +1118,6 @@ const handleLogout = async () => {
             />
           )}
 
-          {/* ============================================ */}
-          {/* INGREDIENTS VIEW - ADDED */}
-          {/* ============================================ */}
           {activeView === 'ingredients' && (
             <IngredientsView
               ingredients={ingredients}
@@ -1113,7 +1136,16 @@ const handleLogout = async () => {
           )}
 
           {activeView === 'reports' && (
-            <ReportsView />
+            <ReportsView
+              reportData={kitchenReportData}
+              isLoading={reportLoading}
+              error={reportError}
+              timeRange="today"
+              onTimeRangeChange={handleTimeRangeChange}
+              onExport={handleExportReport}
+              onRefresh={fetchKitchenReportData}
+              onDismissError={handleDismissReportError}
+            />
           )}
 
           {activeView === 'settings' && (
