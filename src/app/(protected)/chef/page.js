@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/auth-context';
-import { kitchenAPI, stationsAPI, chefInventoryAPI, menuAPI } from '../../../lib/api';
+import { kitchenAPI, stationsAPI, chefInventoryAPI, menuAPI, } from '../../../lib/api';
 import AuthService from '@/lib/auth-utils';
 
 // Import components
@@ -55,7 +55,7 @@ const mapCategoryToStation = (category) => {
 
 export default function ChefDashboard() {
   const { t } = useTranslation('chef');
-  const { logout, user } = useAuth();
+  const { user, token: authContextToken, logout } = useAuth();
   
   // State declarations
   const [orders, setOrders] = useState([]);
@@ -399,7 +399,10 @@ export default function ChefDashboard() {
       setMenuItemsLoading(false);
     }
   };
-
+  const handleLogout = async () => {
+    setIsLoading(true);
+    await logout();
+  };
   // Test API connection for debugging
   const testApiConnection = async () => {
     const token = AuthService.getToken();
@@ -744,16 +747,7 @@ export default function ChefDashboard() {
     }
   };
 
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      AuthService.removeToken();
-      await logout();
-    } catch (err) {
-      console.error('Logout error:', err);
-      setOrdersError(err.message);
-    }
-  };
+
 
  const handleSaveRecipe = async (recipeData) => {
   const token = AuthService.getToken();

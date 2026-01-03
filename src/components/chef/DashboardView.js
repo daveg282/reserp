@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ChefHat, Clock, TrendingUp, Users, ArrowRight, Sparkles } from 'lucide-react';
+import { ChefHat, Clock, TrendingUp, ArrowRight, Sparkles, Package, CheckCircle, Users, AlertCircle } from 'lucide-react';
 
 export default function DashboardView({ 
   kitchenStats, 
@@ -18,7 +18,8 @@ export default function DashboardView({
       icon: Sparkles,
       trend: '+12%',
       color: 'text-orange-600',
-      bg: 'bg-orange-50'
+      bg: 'bg-orange-50',
+      dotColor: 'bg-orange-500'
     },
     { 
       label: t('dashboard.efficiency'), 
@@ -26,7 +27,8 @@ export default function DashboardView({
       icon: TrendingUp,
       trend: '+2%',
       color: 'text-emerald-600',
-      bg: 'bg-emerald-50'
+      bg: 'bg-emerald-50',
+      dotColor: 'bg-emerald-500'
     },
     { 
       label: t('dashboard.avgTime'), 
@@ -34,7 +36,8 @@ export default function DashboardView({
       icon: Clock,
       trend: '-1m',
       color: 'text-blue-600',
-      bg: 'bg-blue-50'
+      bg: 'bg-blue-50',
+      dotColor: 'bg-blue-500'
     },
     { 
       label: t('dashboard.completed'), 
@@ -42,7 +45,8 @@ export default function DashboardView({
       icon: ChefHat,
       trend: '+8%',
       color: 'text-purple-600',
-      bg: 'bg-purple-50'
+      bg: 'bg-purple-50',
+      dotColor: 'bg-purple-500'
     }
   ];
 
@@ -58,198 +62,203 @@ export default function DashboardView({
       pending: 'border-l-red-500',
       preparing: 'border-l-amber-500',
       ready: 'border-l-emerald-500',
-      completed: 'border-l-blue-500'
+      completed: 'border-l-blue-500',
+      cancelled: 'border-l-gray-500'
     };
     return colors[status] || 'border-l-gray-500';
   };
 
+  const getStatusDot = (status) => {
+    const dots = {
+      pending: 'bg-red-500',
+      preparing: 'bg-amber-500',
+      ready: 'bg-emerald-500',
+      completed: 'bg-blue-500',
+      cancelled: 'bg-gray-400'
+    };
+    return dots[status] || 'bg-gray-400';
+  };
+
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'pending': return <Clock className="w-4 h-4 text-red-500" />;
+      case 'preparing': return <Package className="w-4 h-4 text-amber-500" />;
+      case 'ready': return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+      case 'completed': return <CheckCircle className="w-4 h-4 text-blue-500" />;
+      default: return <Clock className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  // Calculate order stats for colored dots display
+  const orderStats = [
+    { status: 'pending', count: orders.filter(o => o.status === 'pending').length, color: 'bg-red-500' },
+    { status: 'preparing', count: orders.filter(o => o.status === 'preparing').length, color: 'bg-amber-500' },
+    { status: 'ready', count: orders.filter(o => o.status === 'ready').length, color: 'bg-emerald-500' },
+    { status: 'completed', count: orders.filter(o => o.status === 'completed').length, color: 'bg-blue-500' }
+  ];
+
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h1>
-          <p className="text-gray-600 mt-1">{t('dashboard.subtitle')}</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span className="text-sm font-medium text-gray-700">{t('dashboard.live')}</span>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('dashboard.title')}</h1>
+          <p className="text-gray-600 text-sm mt-1">{t('dashboard.subtitle')}</p>
         </div>
       </div>
 
-      {/* Stats Grid - Minimal */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Grid - Responsive */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl p-5 border border-gray-200 hover:border-gray-300 transition-colors">
-            <div className="flex items-center justify-between mb-3">
-              <div className={`p-2 rounded-lg ${stat.bg}`}>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
+          <div 
+            key={index} 
+            className="bg-white rounded-xl p-4 sm:p-5 border border-gray-200 hover:shadow-sm transition-all duration-200"
+          >
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${stat.dotColor}`}></div>
+                <div className={`p-2 rounded-lg ${stat.bg}`}>
+                  <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.color}`} />
+                </div>
               </div>
-              <span className="text-xs font-medium text-gray-500">{stat.trend}</span>
+              <span className={`text-xs font-medium px-2 py-1 rounded-full ${stat.bg} ${stat.color}`}>
+                {stat.trend}
+              </span>
             </div>
-            <p className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</p>
-            <p className="text-sm text-gray-600">{stat.label}</p>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stat.value}</p>
+            <p className="text-xs sm:text-sm text-gray-600">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Stations */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-xl border border-gray-200">
-            <div className="p-5 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">{t('dashboard.stations')}</h2>
-            </div>
-            <div className="p-4 space-y-3">
-              {stations.slice(0, 4).map(station => {
-                const count = orders.filter(o => 
-                  o.items?.some(i => i.station === station.id) && 
-                  o.status !== 'completed'
-                ).length;
-                
-                return (
-                  <button
-                    key={station.id}
-                    onClick={() => {
-                      setStationFilter(station.id);
-                      setActiveView('orders');
-                    }}
-                    className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-xl">{station.icon}</span>
-                      <div className="text-left">
-                        <p className="font-medium text-gray-900">{station.name}</p>
-                        <p className="text-sm text-gray-500">{count} {t('dashboard.orders')}</p>
-                      </div>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-                  </button>
-                );
-              })}
-            </div>
-            <div className="p-4 border-t border-gray-100">
-              <button
-                onClick={() => setActiveView('orders')}
-                className="w-full text-center text-sm font-medium text-orange-600 hover:text-orange-700 py-2"
-              >
-                {t('dashboard.viewAll')}
-              </button>
-            </div>
+      {/* Order Status Dots - Like Tables View */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+          <div>
+            <h2 className="font-semibold text-gray-900 text-base sm:text-lg">{t('dashboard.orderStatus', 'Order Status')}</h2>
+            <p className="text-gray-600 text-xs sm:text-sm mt-1">{orders.length} {t('dashboard.totalOrders', 'total orders')}</p>
           </div>
-
-          {/* Performance */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">{t('dashboard.performance')}</h3>
-              <span className="text-lg font-bold text-emerald-600">{kitchenStats.efficiency || 94}%</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">{t('dashboard.ontime')}</span>
-                <span className="font-medium text-gray-900">{kitchenStats.onTime || 89}%</span>
+          <div className="flex flex-wrap gap-3 sm:gap-4">
+            {orderStats.map((stat, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${stat.color}`}></div>
+                <span className="text-sm text-gray-600">
+                  {stat.count} {t(`dashboard.status.${stat.status}`)}
+                </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-1">
-                <div 
-                  className="bg-emerald-500 h-1 rounded-full transition-all duration-500"
-                  style={{ width: `${kitchenStats.onTime || 89}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Orders */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl border border-gray-200">
-            <div className="p-5 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-gray-900">{t('dashboard.recentOrders')}</h2>
-                <button
-                  onClick={() => setActiveView('orders')}
-                  className="text-sm font-medium text-orange-600 hover:text-orange-700"
-                >
-                  {t('dashboard.viewAll')}
-                </button>
-              </div>
-            </div>
-            
-            <div className="divide-y divide-gray-100">
-              {orders.slice(0, 6).map(order => {
-                const itemCount = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
-                
-                return (
-                  <div 
-                    key={order.id}
-                    className={`p-5 border-l-4 ${getStatusColor(order.status)} hover:bg-gray-50 transition-colors`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-3">
-                          <h3 className="font-medium text-gray-900">{order.orderNumber}</h3>
-                          <span className="text-sm text-gray-500">•</span>
-                          <span className="text-sm font-medium text-gray-700">
-                            {t('dashboard.table')} {order.tableNumber}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600">
-                          <span>{itemCount} {t('dashboard.items')}</span>
-                          <span>•</span>
-                          <span className="flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                            {getTimeAgo(order.orderTime)}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-4">
-                        <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                          order.status === 'ready' ? 'bg-emerald-100 text-emerald-700' :
-                          order.status === 'preparing' ? 'bg-amber-100 text-amber-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {t(`dashboard.status.${order.status}`)}
-                        </span>
-                        {order.status === 'ready' && updateOrderStatus && (
-                          <button
-                            onClick={() => updateOrderStatus(order.id, 'completed')}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
-                          >
-                            {t('dashboard.serve')}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900 mb-1">
-                {orders.filter(o => o.status === 'preparing').length}
-              </p>
-              <p className="text-sm text-gray-600">{t('dashboard.preparing')}</p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900 mb-1">
-                {orders.filter(o => o.status === 'ready').length}
-              </p>
-              <p className="text-sm text-gray-600">{t('dashboard.ready')}</p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900 mb-1">
-                {orders.filter(o => o.status === 'completed').length}
-              </p>
-              <p className="text-sm text-gray-600">{t('dashboard.completed')}</p>
-            </div>
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Recent Orders - Responsive */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <h2 className="font-semibold text-gray-900 text-base sm:text-lg">{t('dashboard.recentOrders')}</h2>
+              <p className="text-gray-600 text-xs sm:text-sm mt-1">{t('dashboard.manageOrders', 'Manage and track recent orders')}</p>
+            </div>
+            <button
+              onClick={() => setActiveView('orders')}
+              className="flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors"
+            >
+              <span>{t('dashboard.viewAll')}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="divide-y divide-gray-100 max-h-[400px] sm:max-h-[500px] overflow-y-auto">
+          {orders.slice(0, 6).map(order => {
+            const itemCount = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 0;
+            
+            return (
+              <div 
+                key={order.id}
+                className={`p-4 sm:p-5 border-l-4 ${getStatusColor(order.status)} hover:bg-gray-50 transition-colors`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${getStatusDot(order.status)}`}></div>
+                        {getStatusIcon(order.status)}
+                        <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{order.orderNumber}</h3>
+                      </div>
+                      <span className="text-xs font-medium px-2 sm:px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full">
+                        {t('dashboard.table')} {order.tableNumber}
+                      </span>
+                      {order.customerName && (
+                        <span className="text-xs font-medium px-2 sm:px-2.5 py-1 bg-green-100 text-green-700 rounded-full truncate hidden sm:inline">
+                          {order.customerName}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <Package className="w-3 h-3 sm:w-4 sm:h-4" />
+                        {itemCount} {t('dashboard.items')}
+                      </span>
+                      <span className="hidden sm:inline">•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                        {getTimeAgo(order.orderTime)}
+                      </span>
+                      <span className="hidden sm:inline">•</span>
+                      <span className="font-medium">
+                        ETB {order.total?.toLocaleString() || '0'}
+                      </span>
+                    </div>
+                    
+                    {order.customerName && (
+                      <div className="mt-2 sm:hidden flex items-center gap-2 text-xs">
+                        <Users className="w-3 h-3" />
+                        <span className="text-gray-700 truncate">{order.customerName}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                    <span className={`text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full whitespace-nowrap ${
+                      order.status === 'ready' ? 'bg-emerald-100 text-emerald-700 border border-gray-200' :
+                      order.status === 'preparing' ? 'bg-amber-100 text-amber-700 border border-gray-200' :
+                      order.status === 'pending' ? 'bg-red-100 text-red-700 border border-gray-200' :
+                      'bg-gray-100 text-gray-700 border border-gray-200'
+                    }`}>
+                      {t(`dashboard.status.${order.status}`)}
+                    </span>
+                    
+                    {order.status === 'ready' && updateOrderStatus && (
+                      <button
+                        onClick={() => updateOrderStatus(order.id, 'completed')}
+                        className="px-3 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-medium rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
+                      >
+                        <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                        {t('dashboard.serve')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* No Orders State */}
+      {orders.length === 0 && (
+        <div className="text-center py-8 sm:py-12 bg-white rounded-xl border border-gray-200">
+          <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">📋</div>
+          <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">
+            {t('dashboard.noOrders', 'No Orders Yet')}
+          </h3>
+          <p className="text-gray-600 text-xs sm:text-sm mb-4 sm:mb-6 max-w-md mx-auto px-4">
+            {t('dashboard.noOrdersDesc', 'There are no active orders at the moment.')}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
