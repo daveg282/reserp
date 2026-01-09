@@ -12,10 +12,10 @@ export default function OrdersView({
   searchQuery, 
   setSearchQuery, 
   stations, 
-  updateOrderStatus, 
-  updateItemStatus,
+  updateOrderStatus,  // For updating entire order status
   setSelectedOrder,
-  isLoading = false
+  isLoading = false,
+  onStartPreparation  // For ingredient checks
 }) {
   const { t } = useTranslation('chef');
   const [localOrders, setLocalOrders] = useState([]);
@@ -81,14 +81,6 @@ export default function OrdersView({
     }
   };
 
-  const handleItemStatusUpdate = async (itemId, status) => {
-    try {
-      await updateItemStatus(itemId, status);
-    } catch (error) {
-      console.error('Error updating item status:', error);
-    }
-  };
-
   return (
     <div className="space-y-4 lg:space-y-6">
       <div className="flex flex-col gap-4">
@@ -147,9 +139,9 @@ export default function OrdersView({
             order={order}
             stations={stations}
             updateOrderStatus={handleOrderStatusUpdate}
-            updateItemStatus={handleItemStatusUpdate}
             setSelectedOrder={setSelectedOrder}
             isLoading={isLoading}
+            onStartPreparation={onStartPreparation}  // Pass this down
           />
         ))}
       </div>

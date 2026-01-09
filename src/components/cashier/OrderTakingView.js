@@ -132,16 +132,16 @@ export default function OrderTakingView({
 
         {/* Customer Info & Cart Summary */}
         <div className="lg:col-span-1">
-          <CartSummary
-            currentOrder={currentOrder}
-            setCurrentOrder={setCurrentOrder}
-            cart={cart}
-            removeFromCart={removeFromCart}
-            cartTotal={cartTotal}
-            placeOrder={placeOrder}
-            clearCart={clearCart}
-            tables={tables}
-          />
+         <CartSummary
+  currentOrder={currentOrder}
+  setCurrentOrder={setCurrentOrder}
+  cart={cart}
+  removeFromCart={removeFromCart}
+  cartTotal={cartTotal}
+  placeOrder={placeOrder}  // This function expects a customerName parameter
+  clearCart={clearCart}
+  tables={tables}
+/>
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/auth-context';
-import { kitchenAPI, stationsAPI, chefInventoryAPI, menuAPI } from '../../../lib/api';
+import { kitchenAPI, stationsAPI, chefInventoryAPI, menuAPI, ordersAPI } from '../../../lib/api';
 import AuthService from '@/lib/auth-utils';
 
 // Import components
@@ -74,7 +74,7 @@ export default function ChefDashboard() {
     avgPrepTime: 0,
     delayed: 0
   });
-  const [kitchenReportData, setKitchenReportData] = useState(null); // New state for report data
+  const [kitchenReportData, setKitchenReportData] = useState(null);
   const [filter, setFilter] = useState('active');
   const [stationFilter, setStationFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -87,16 +87,16 @@ export default function ChefDashboard() {
   const [stationsLoading, setStationsLoading] = useState(false);
   const [ingredientsLoading, setIngredientsLoading] = useState(false);
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
-  const [reportLoading, setReportLoading] = useState(false); // New loading state for reports
+  const [reportLoading, setReportLoading] = useState(false);
   
   // Error states
   const [ordersError, setOrdersError] = useState(null);
   const [stationsError, setStationsError] = useState(null);
   const [ingredientsError, setIngredientsError] = useState(null);
   const [menuItemsError, setMenuItemsError] = useState(null);
-  const [reportError, setReportError] = useState(null); // New error state for reports
+  const [reportError, setReportError] = useState(null);
 
-  // Enhanced transform function with better error handling
+  // Transform backend orders to frontend format
   const transformBackendOrders = (backendOrders) => {
     if (!Array.isArray(backendOrders)) return [];
     
@@ -135,10 +135,7 @@ export default function ChefDashboard() {
   // Transform kitchen stats data for ReportsView
   const transformKitchenStatsData = (apiData) => {
     try {
-      console.log('🔄 Transforming kitchen stats data for ReportsView:', apiData);
-      
       if (!apiData || !apiData.stats) {
-        console.warn('⚠️ No stats data in API response');
         return {
           reportDate: new Date().toLocaleDateString('en-US', { 
             weekday: 'long', 
@@ -152,11 +149,6 @@ export default function ChefDashboard() {
           ready_orders: 0,
           ordersPrepared: 0,
           avgPrepTime: 0,
-          popularDishes: [],
-          efficiency: {
-            orderAccuracy: 0,
-            onTimeDelivery: 0
-          }
         };
       }
       
@@ -168,25 +160,22 @@ export default function ChefDashboard() {
         day: 'numeric' 
       });
       
-      // Calculate orders prepared (pending + preparing)
       const ordersPrepared = (stats.pending_orders || 0) + (stats.preparing_orders || 0);
       
-      // Prepare popular dishes from API response
       let popularDishes = [];
       if (apiData.popular_items && Array.isArray(apiData.popular_items)) {
         popularDishes = apiData.popular_items.map(item => ({
           name: item.menu_item_name || item.name || 'Unknown Dish',
           orders: item.order_count || 0
-        })).slice(0, 5); // Top 5 only
+        })).slice(0, 5);
       }
       
-      // Mock efficiency metrics (in a real app, this would come from the API)
       const efficiency = {
-        orderAccuracy: Math.min(100, Math.floor(Math.random() * 10) + 90), // 90-99%
-        onTimeDelivery: Math.min(100, Math.floor(Math.random() * 15) + 85) // 85-99%
+        orderAccuracy: Math.min(100, Math.floor(Math.random() * 10) + 90),
+        onTimeDelivery: Math.min(100, Math.floor(Math.random() * 15) + 85)
       };
       
-      const transformedData = {
+      return {
         reportDate: today,
         total_orders_today: stats.total_orders_today || 0,
         pending_orders: stats.pending_orders || 0,
@@ -197,9 +186,6 @@ export default function ChefDashboard() {
         popularDishes: popularDishes,
         efficiency: efficiency
       };
-      
-      console.log('✅ Transformed report data:', transformedData);
-      return transformedData;
       
     } catch (error) {
       console.error('❌ Error transforming kitchen stats:', error);
@@ -225,13 +211,11 @@ export default function ChefDashboard() {
     const token = AuthService.getToken();
     
     if (!token) {
-      console.error('❌ No token found for kitchen report');
       setReportError('Authentication required');
       return;
     }
 
     if (!user || !['chef', 'admin', 'manager'].includes(user?.role)) {
-      console.error('❌ User role not authorized:', user?.role);
       setReportError('Access Denied: Chef, manager, or admin role required.');
       return;
     }
@@ -240,20 +224,13 @@ export default function ChefDashboard() {
     setReportError(null);
     
     try {
-      console.log('📊 Fetching kitchen stats for reports...');
-      
       const apiResponse = await kitchenAPI.getKitchenStats(token);
-      console.log('📊 Raw kitchen stats API response:', apiResponse);
-      
       const transformedData = transformKitchenStatsData(apiResponse);
       setKitchenReportData(transformedData);
-      
-      console.log('✅ Kitchen report data loaded successfully');
       
     } catch (err) {
       console.error('❌ Error fetching kitchen report data:', err);
       setReportError(err.message || 'Failed to load kitchen statistics');
-      // Set empty report data on error
       setKitchenReportData(transformKitchenStatsData(null));
     } finally {
       setReportLoading(false);
@@ -265,14 +242,12 @@ export default function ChefDashboard() {
     const token = AuthService.getToken();
     
     if (!token) {
-      console.error('❌ No token found for ingredients fetch');
       setIngredientsError('Authentication required');
       setIngredients([]);
       return;
     }
 
     if (!['admin', 'manager', 'chef'].includes(user?.role)) {
-      console.log('ℹ️ User not authorized for ingredients API');
       setIngredients([]);
       return;
     }
@@ -281,13 +256,9 @@ export default function ChefDashboard() {
     setIngredientsError(null);
     
     try {
-      console.log('📡 Fetching chef ingredients via API wrapper...');
-      
       const ingredientsData = await chefInventoryAPI.getIngredients(token);
-      console.log('📊 Ingredients data from API:', ingredientsData);
       
       if (!ingredientsData || ingredientsData.length === 0) {
-        console.warn('⚠️ API returned empty ingredients array');
         setIngredients([]);
         setIngredientStats({
           totalItems: 0,
@@ -297,8 +268,6 @@ export default function ChefDashboard() {
         });
         return;
       }
-      
-      console.log(`✅ Got ${ingredientsData.length} ingredients`);
       
       const stats = {
         totalItems: ingredientsData.length,
@@ -358,7 +327,6 @@ export default function ChefDashboard() {
       
       setIngredients(processedIngredients);
       setIngredientStats(stats);
-      console.log('✅ Chef ingredients loaded successfully!');
       
     } catch (err) {
       console.error('❌ Error fetching chef ingredients:', err);
@@ -380,14 +348,12 @@ export default function ChefDashboard() {
     const token = AuthService.getToken();
     
     if (!token) {
-      console.error('❌ No token found for menu items fetch');
       setMenuItemsError('Authentication required');
       setMenuItems([]);
       return;
     }
 
     if (!['admin', 'manager', 'chef'].includes(user?.role)) {
-      console.log('ℹ️ User not authorized for menu items API');
       setMenuItems([]);
       return;
     }
@@ -396,8 +362,6 @@ export default function ChefDashboard() {
     setMenuItemsError(null);
     
     try {
-      console.log('📡 Fetching menu items with recipes...');
-      
       let menuItemsData = [];
       
       try {
@@ -405,9 +369,7 @@ export default function ChefDashboard() {
           include_recipes: true,
           include_ingredients: true
         });
-        console.log('📊 Menu items from chefInventoryAPI:', menuItemsData);
       } catch (err) {
-        console.log('🔄 Falling back to menuAPI...');
         menuItemsData = await menuAPI.getMenuItems(token);
       }
       
@@ -424,7 +386,6 @@ export default function ChefDashboard() {
       }));
       
       setMenuItems(transformedMenuItems);
-      console.log(`✅ Menu items loaded: ${transformedMenuItems.length} items`);
       
     } catch (err) {
       console.error('❌ Error fetching menu items:', err);
@@ -454,26 +415,23 @@ export default function ChefDashboard() {
       }
       
     } catch (error) {
-      console.error('Logout error:', error);
       localStorage.clear();
       sessionStorage.clear();
       AuthService.clearToken();
       window.location.href = '/chef/login';
     }
   };
- 
+
   // Fetch kitchen orders
   const fetchKitchenData = async () => {
     const token = AuthService.getToken();
     
     if (!token) {
-      console.error('❌ No token found');
       setOrdersError('Please login again. No authentication token found.');
       return;
     }
 
     if (!user || !['chef', 'admin', 'manager'].includes(user?.role)) {
-      console.error('❌ User role not authorized:', user?.role);
       setOrdersError('Access Denied: Chef, manager, or admin role required.');
       return;
     }
@@ -482,14 +440,8 @@ export default function ChefDashboard() {
     setOrdersError(null);
     
     try {
-      console.log('📡 Calling kitchenAPI.getKitchenOrders...');
-      
       const ordersData = await kitchenAPI.getKitchenOrders(token);
-      console.log('📊 Raw orders data:', ordersData);
-      
       const transformedOrders = transformBackendOrders(Array.isArray(ordersData) ? ordersData : []);
-      console.log('🔄 Transformed orders:', transformedOrders.length);
-      
       setOrders(transformedOrders);
       
       const active = transformedOrders.filter(o => o.status !== 'completed').length;
@@ -526,8 +478,6 @@ export default function ChefDashboard() {
         avgPrepTime 
       });
       
-      console.log('✅ Kitchen orders loaded successfully');
-      
     } catch (err) {
       console.error('❌ Error fetching kitchen data:', err);
       setOrdersError(err.message || 'Failed to load orders');
@@ -542,14 +492,12 @@ export default function ChefDashboard() {
     const token = AuthService.getToken();
     
     if (!token) {
-      console.error('❌ No token found for stations fetch');
       setStationsError('Authentication required');
       setStations([]);
       return;
     }
 
     if (!['admin', 'manager', 'chef'].includes(user?.role)) {
-      console.log('ℹ️ User not authorized for stations API');
       setStations([]);
       return;
     }
@@ -558,10 +506,7 @@ export default function ChefDashboard() {
     setStationsError(null);
     
     try {
-      console.log('📡 Fetching stations from API...');
-      
       const stationsData = await stationsAPI.getStations(token);
-      console.log('📊 Stations data received:', stationsData);
       
       let stationsArray = [];
       if (Array.isArray(stationsData)) {
@@ -588,7 +533,6 @@ export default function ChefDashboard() {
       }));
       
       setStations(transformedStations);
-      console.log('✅ Stations loaded:', transformedStations.length);
       
     } catch (err) {
       console.error('❌ Error fetching stations:', err);
@@ -607,10 +551,7 @@ export default function ChefDashboard() {
         throw new Error('Authentication required');
       }
       
-      console.log(`🧑‍🍳 Starting preparation for order item ${orderItemId}`);
-      
       const checkResult = await chefInventoryAPI.checkOrderItemIngredients(orderItemId, token);
-      console.log('📊 Check result:', checkResult);
       
       let canPrepare = false;
       let warnings = [];
@@ -636,7 +577,6 @@ export default function ChefDashboard() {
       }
       
       const deductionResult = await chefInventoryAPI.deductIngredients(orderItemId, token);
-      console.log('📊 Deduction result:', deductionResult);
       
       setOrders(prev => prev.map(order => ({
         ...order,
@@ -646,8 +586,6 @@ export default function ChefDashboard() {
             : item
         )
       })));
-      
-      console.log('✅ Preparation started:', deductionResult.message || 'Ingredients deducted');
       
       await fetchChefIngredients();
       
@@ -660,78 +598,75 @@ export default function ChefDashboard() {
     }
   };
 
-  // Update order status via API
-  const updateOrderStatus = async (orderId, newStatus) => {
-    try {
-      console.log(`🔄 Updating order ${orderId} to ${newStatus}`);
-      
-      const token = AuthService.getToken();
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
-      const result = await kitchenAPI.updateOrderStatus(orderId, newStatus, token);
-      console.log('📊 Update order status result:', result);
-      
-      if (result.success || result.message) {
-        setOrders(prev => prev.map(order => {
-          if (order.id === orderId) {
-            const updates = { status: newStatus };
-            
-            if (newStatus === 'preparing') {
-              updates.startedTime = new Date().toISOString();
-            }
-            if (newStatus === 'ready') {
-              updates.readyTime = new Date().toISOString();
-            }
-            if (newStatus === 'completed') {
-              updates.completedTime = new Date().toISOString();
-            }
-            
-            return { ...order, ...updates };
-          }
-          return order;
-        }));
+ // In page.js - updateOrderStatus function
+const updateOrderStatus = async (orderId, newStatus) => {
+  try {
+    console.log(`🔄 Updating order ${orderId} to ${newStatus}`);
+    
+    const token = AuthService.getToken();
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+    
+    // Since your endpoint works with order items, we need to update ALL items
+    // First, find the order
+    const orderToUpdate = orders.find(order => order.id === orderId);
+    if (!orderToUpdate) {
+      throw new Error('Order not found');
+    }
+    
+    // Update each item in the order
+    const updatePromises = orderToUpdate.items?.map(item => 
+      kitchenAPI.updateOrderItemStatus(item.id, newStatus, token)
+    ) || [];
+    
+    await Promise.all(updatePromises);
+    
+    // Update local state
+    setOrders(prev => prev.map(order => {
+      if (order.id === orderId) {
+        const updatedOrder = { 
+          ...order, 
+          status: newStatus,
+          items: order.items?.map(item => ({
+            ...item,
+            status: newStatus
+          }))
+        };
         
-        setTimeout(() => fetchKitchenData(), 1000);
+        // Add timestamps based on status change
+        const now = new Date().toISOString();
+        if (newStatus === 'preparing' && !order.startedTime) {
+          updatedOrder.startedTime = now;
+        }
+        if (newStatus === 'ready' && !order.readyTime) {
+          updatedOrder.readyTime = now;
+        }
+        if (newStatus === 'completed' && !order.completedTime) {
+          updatedOrder.completedTime = now;
+        }
+        
+        return updatedOrder;
       }
-      
-    } catch (err) {
-      console.error('❌ Error updating order status:', err);
-      setOrdersError(err.message);
+      return order;
+    }));
+    
+    // Refresh data
+    setTimeout(() => {
       fetchKitchenData();
-    }
-  };
-
-  // Update item status via API
-  const updateItemStatus = async (itemId, status, menuItemId) => {
-    try {
-      console.log(`🔄 Updating item ${itemId} to ${status}`);
-      
-      const token = AuthService.getToken();
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
-      if (status === 'preparing') {
-        const success = await handleStartPreparation(itemId, menuItemId);
-        if (!success) return;
-      } else {
-        await kitchenAPI.updateItemStatus(itemId, status, token);
-      }
-      
-      setTimeout(() => fetchKitchenData(), 1000);
-      
-    } catch (err) {
-      console.error('❌ Error updating item status:', err);
-      setOrdersError(err.message);
-    }
-  };
+    }, 1000);
+    
+    return true;
+    
+  } catch (err) {
+    console.error('❌ Error updating order status:', err);
+    setOrdersError(err.message || 'Failed to update order status');
+    return false;
+  }
+};
 
   // Handle refresh for all views
   const handleRefresh = () => {
-    console.log('🔄 Manual refresh triggered for view:', activeView);
-    
     if (activeView === 'orders' || activeView === 'dashboard') {
       fetchKitchenData();
     }
@@ -758,8 +693,6 @@ export default function ChefDashboard() {
     }
 
     try {
-      console.log('💾 Saving recipe ingredients:', recipeData);
-      
       if (!recipeData.menuItemId) {
         alert('Menu item ID is required to save recipe');
         return;
@@ -772,11 +705,8 @@ export default function ChefDashboard() {
         notes: ingredient.notes || ''
       }));
       
-      console.log('📦 Bulk ingredients to add:', ingredientsArray);
-      
       const existingMenuItem = menuItems.find(m => m.id === recipeData.menuItemId);
       if (existingMenuItem && existingMenuItem.recipe && existingMenuItem.recipe.length > 0) {
-        console.log('🗑️ Clearing existing recipe ingredients...');
         for (const ingredient of existingMenuItem.recipe) {
           try {
             await menuAPI.removeIngredientFromMenuItem(
@@ -791,7 +721,6 @@ export default function ChefDashboard() {
       }
       
       if (ingredientsArray.length > 0) {
-        console.log('➕ Adding new ingredients via bulk...');
         const bulkResult = await menuAPI.addIngredientsBulk(
           recipeData.menuItemId,
           ingredientsArray,
@@ -801,8 +730,6 @@ export default function ChefDashboard() {
         if (!bulkResult || bulkResult.error) {
           throw new Error(bulkResult?.error || 'Failed to add ingredients');
         }
-        
-        console.log('✅ Bulk ingredients added:', bulkResult);
       }
       
       alert('Recipe updated successfully!');
@@ -833,12 +760,8 @@ export default function ChefDashboard() {
     }
 
     try {
-      console.log(`🗑️ Deleting menu item ${menuItemId}`);
-      
       await menuAPI.deleteMenuItem(menuItemId, token);
-      
       alert('Recipe deleted successfully!');
-      
       await fetchMenuItems();
       
     } catch (err) {
@@ -849,24 +772,16 @@ export default function ChefDashboard() {
 
   // Handle time range change for reports
   const handleTimeRangeChange = (range) => {
-    console.log('📅 Time range changed to:', range);
-    // For now, just refresh the data
     fetchKitchenReportData();
   };
 
   // Handle export for reports
   const handleExportReport = () => {
-    console.log('📤 Exporting report data...');
-    // In a real app, this would generate a PDF or CSV
     alert('Export functionality would generate a report file');
   };
 
   // Initialize data on component mount
   useEffect(() => {
-    console.log('🧑‍🍳 Chef Dashboard mounted');
-    console.log('👤 User role:', user?.role);
-    console.log('🔐 AuthService token exists:', AuthService.getToken() ? 'Yes' : 'No');
-    
     const loadData = async () => {
       try {
         await Promise.all([
@@ -874,7 +789,7 @@ export default function ChefDashboard() {
           fetchStations(),
           fetchChefIngredients(),
           fetchMenuItems(),
-          fetchKitchenReportData() // Load report data on mount
+          fetchKitchenReportData()
         ]);
       } catch (error) {
         console.error('❌ Error loading initial data:', error);
@@ -883,9 +798,7 @@ export default function ChefDashboard() {
     
     loadData();
     
-    // Set up polling every 30 seconds
     const intervalId = setInterval(() => {
-      console.log('⏰ Auto-refreshing data...');
       fetchKitchenData();
       if (activeView === 'stations' || activeView === 'dashboard') {
         fetchStations();
@@ -906,8 +819,6 @@ export default function ChefDashboard() {
 
   // Re-fetch when view changes
   useEffect(() => {
-    console.log('🔄 Active view changed to:', activeView);
-    
     if (activeView === 'stations' && stations.length === 0) {
       fetchStations();
     }
@@ -947,17 +858,14 @@ export default function ChefDashboard() {
 
   // Callback functions for InventoryView
   const handleAddIngredient = () => {
-    console.log('➕ Add ingredient clicked');
     alert('Add ingredient functionality would open a form');
   };
 
   const handleUpdateIngredient = (itemId) => {
-    console.log('✏️ Update ingredient:', itemId);
     alert(`Would open edit form for ingredient ${itemId}`);
   };
 
   const handleDeleteIngredient = (itemId) => {
-    console.log('🗑️ Delete ingredient:', itemId);
     if (confirm(`Are you sure you want to delete ingredient ${itemId}?`)) {
       console.log(`Deleting ingredient ${itemId}`);
     }
@@ -966,7 +874,6 @@ export default function ChefDashboard() {
   // Dismiss report error
   const handleDismissReportError = () => {
     setReportError(null);
-    // Set empty report data when error is dismissed
     setKitchenReportData(transformKitchenStatsData(null));
   };
 
@@ -1083,7 +990,6 @@ export default function ChefDashboard() {
               setSearchQuery={setSearchQuery}
               stations={stations}
               updateOrderStatus={updateOrderStatus}
-              updateItemStatus={updateItemStatus}
               setSelectedOrder={setSelectedOrder}
               isLoading={ordersLoading}
               error={ordersError}
@@ -1159,7 +1065,6 @@ export default function ChefDashboard() {
         selectedOrder={selectedOrder}
         setSelectedOrder={setSelectedOrder}
         updateOrderStatus={updateOrderStatus}
-        updateItemStatus={updateItemStatus}
         onStartPreparation={handleStartPreparation}
       />
     </div>

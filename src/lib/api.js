@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://vortex-admin-kuku.pro.et/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 // Auth API endpoints
 export const authAPI = {
@@ -1245,64 +1245,66 @@ export const kitchenAPI = {
       throw error;
     }
   },
+// In api.js - kitchenAPI section
+async updateOrderItemStatus(orderItemId, status, token) {
+  try {
+    console.log(`📡 Updating order item ${orderItemId} status to: ${status}`);
+    
+    const response = await fetch(`${API_BASE_URL}/orders/items/${orderItemId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
+      throw new Error(`Failed to update order item status: ${errorMessage}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ Order item status update successful:', data);
+    return data;
+    
+  } catch (error) {
+    console.error('❌ Error in updateOrderItemStatus API call:', error);
+    throw error;
+  }
+},
 
-  // Update item status
-  async updateItemStatus(itemId, status, token) {
-    try {
-      console.log(`🔄 Updating item ${itemId} to status: ${status}`);
-      
-      const response = await fetch(`${API_BASE_URL}/kitchen/items/${itemId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to update item status');
-      }
-      
-      const data = await response.json();
-      console.log('✅ Item status updated:', data);
-      return data;
-      
-    } catch (error) {
-      console.error('Update Item Status Error:', error);
-      throw error;
+// Add a separate function for updating entire order if needed
+async updateOrderStatus(orderId, status, token) {
+  try {
+    console.log(`📡 Updating entire order ${orderId} status to: ${status}`);
+    
+    // If you have an endpoint for updating entire order status
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
+      throw new Error(`Failed to update entire order status: ${errorMessage}`);
     }
-  },
-   async updateOrderStatus(orderId, status, token) {
-    try {
-      console.log(`🔄 Updating ORDER ${orderId} to ${status}`);
-      
-      const response = await fetch(`${API_BASE_URL}/kitchen/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status }),
-      });
-      
-      console.log('📡 Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to update order status to ${status}`);
-      }
-      
-      const data = await response.json();
-      console.log('✅ Order status updated:', data);
-      return data;
-      
-    } catch (error) {
-      console.error('Update Order Status Error:', error);
-      throw error;
-    }
-  },
+    
+    const data = await response.json();
+    console.log('✅ Entire order status update successful:', data);
+    return data;
+    
+  } catch (error) {
+    console.error('❌ Error in updateOrderStatus API call:', error);
+    throw error;
+  }
+},
 
   // Mark entire order as ready
   async markOrderReady(orderId, token) {
@@ -2649,4 +2651,181 @@ export const reportAPI = {
       throw error;
     }
   }
+};
+// Cashier-specific API consolidator
+
+export const cashierBillingAPI = {
+  // Process payment for order - POST /billing/orders/:id/pay
+  async processPayment(orderId, paymentData, token) {
+    try {
+      console.log('💰 Processing payment for order:', orderId);
+      
+      const response = await fetch(`${API_BASE_URL}/billing/orders/${orderId}/pay`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(paymentData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to process payment');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Process payment error:', error);
+      throw error;
+    }
+  },
+  
+  // Generate receipt - GET /billing/orders/:id/receipt
+  async generateReceipt(orderId, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/billing/orders/${orderId}/receipt`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate receipt');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Generate receipt error:', error);
+      throw error;
+    }
+  },
+  
+  // Get pending payments - GET /billing/pending
+  async getPendingPayments(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/billing/pending`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch pending payments');
+      }
+      
+      const data = await response.json();
+      return data.orders || [];
+      
+    } catch (error) {
+      console.error('Get pending payments error:', error);
+      throw error;
+    }
+  },
+  
+  // Apply discount to order - POST /billing/orders/:id/discount
+  async applyDiscount(orderId, discountData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/billing/orders/${orderId}/discount`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(discountData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to apply discount');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Apply discount error:', error);
+      throw error;
+    }
+  },
+  
+  // Get sales summary - GET /billing/sales/summary
+  async getSalesSummary(token, params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}/billing/sales/summary${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch sales summary');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get sales summary error:', error);
+      throw error;
+    }
+  },
+  
+  // Generate HTML receipt - GET /billing/orders/:id/receipt/html
+  async generateReceiptHTML(orderId, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/billing/orders/${orderId}/receipt/html`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate HTML receipt');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Generate HTML receipt error:', error);
+      throw error;
+    }
+  },
+  // Add this to api.js in the cashierBillingAPI section, after getSalesSummary
+async getDailySalesReport(token, date = null) {
+  try {
+    const queryParams = date ? `?date=${date}` : '';
+    const url = `${API_BASE_URL}/billing/sales/daily${queryParams}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to fetch daily sales report');
+    }
+    
+    const data = await response.json();
+    return data;
+    
+  } catch (error) {
+    console.error('Get daily sales report error:', error);
+    throw error;
+  }
+}
 };

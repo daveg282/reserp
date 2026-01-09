@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Clock, CheckCircle, ChefHat, AlertCircle } from 'lucide-react';
+import { Clock, CheckCircle, ChefHat } from 'lucide-react';
 
 export default function OrderCard({ 
   order, 
   stations, 
-  updateOrderStatus, 
-  updateItemStatus,
+  updateOrderStatus,
   setSelectedOrder,
-  isLoading = false 
+  isLoading = false,
+  onStartPreparation  // This should be used for ingredient checks
 }) {
   const { t } = useTranslation('chef');
   const [mounted, setMounted] = useState(false);
@@ -37,7 +37,7 @@ export default function OrderCard({
     };
     
     updateTime();
-    const interval = setInterval(updateTime, 60000); // Update every minute
+    const interval = setInterval(updateTime, 60000);
     
     return () => clearInterval(interval);
   }, [mounted, order.orderTime, t]);
@@ -93,6 +93,21 @@ export default function OrderCard({
 
   const statusConfig = getStatusConfig(order.status);
   const StatusIcon = statusConfig.icon;
+
+  // Handle start preparing with ingredient check
+  const handleStartPreparing = async () => {
+    if (isLoading) return;
+    
+    // Check if there's a first item to check ingredients for
+    const firstItem = order.items?.[0];
+    if (firstItem && onStartPreparation) {
+      const canPrepare = await onStartPreparation(firstItem.id, firstItem.menu_item_id);
+      if (!canPrepare) return;
+    }
+    
+    // Update order status to preparing
+    await updateOrderStatus(order.id, 'preparing');
+  };
 
   return (
     <div className="bg-white rounded-xl lg:rounded-2xl border shadow-sm hover:shadow-md transition-shadow duration-200">
@@ -161,7 +176,7 @@ export default function OrderCard({
           
           {order.status === 'pending' && (
             <button
-              onClick={() => updateOrderStatus(order.id, 'preparing')}
+              onClick={handleStartPreparing}
               disabled={isLoading}
               className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium transition disabled:opacity-50"
             >

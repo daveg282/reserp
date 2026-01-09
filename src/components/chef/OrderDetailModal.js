@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Check, Clock, ChefHat } from 'lucide-react';
 
-export default function OrderDetailModal({ selectedOrder, setSelectedOrder, updateOrderStatus, updateItemStatus }) {
+export default function OrderDetailModal({ 
+  selectedOrder, 
+  setSelectedOrder, 
+  updateOrderStatus,  // Changed from updateItemStatus
+  onStartPreparation  // Added for ingredient checks
+}) {
   const { t } = useTranslation('chef');
   const [updating, setUpdating] = useState(false);
 
@@ -21,28 +26,22 @@ export default function OrderDetailModal({ selectedOrder, setSelectedOrder, upda
     
     setUpdating(true);
     try {
+      // For 'preparing' status, check ingredients first
+      if (newStatus === 'preparing' && onStartPreparation) {
+        const firstItem = selectedOrder.items?.[0];
+        if (firstItem) {
+          const canPrepare = await onStartPreparation(firstItem.id, firstItem.menu_item_id);
+          if (!canPrepare) {
+            setUpdating(false);
+            return;
+          }
+        }
+      }
+      
       await updateOrderStatus(selectedOrder.id, newStatus);
       setSelectedOrder({ ...selectedOrder, status: newStatus });
     } catch (error) {
       console.error('Error updating order status:', error);
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleItemStatusUpdate = async (itemId, newStatus) => {
-    if (!itemId || updating) return;
-    
-    setUpdating(true);
-    try {
-      await updateItemStatus(itemId, newStatus);
-      // Update local state
-      const updatedItems = selectedOrder.items.map(item =>
-        item.id === itemId ? { ...item, status: newStatus } : item
-      );
-      setSelectedOrder({ ...selectedOrder, items: updatedItems });
-    } catch (error) {
-      console.error('Error updating item status:', error);
     } finally {
       setUpdating(false);
     }
@@ -155,15 +154,6 @@ export default function OrderDetailModal({ selectedOrder, setSelectedOrder, upda
                         <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusConfig(item.status).color}`}>
                           {getStatusConfig(item.status).label}
                         </span>
-                        {item.status === 'preparing' && (
-                          <button
-                            onClick={() => handleItemStatusUpdate(item.id, 'ready')}
-                            disabled={updating}
-                            className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
-                          >
-                            Ready
-                          </button>
-                        )}
                       </div>
                     </div>
                     
