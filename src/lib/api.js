@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://vortex-admin-kuku.pro.et/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 // Auth API endpoints
 export const authAPI = {
@@ -1148,7 +1148,6 @@ export const menuAPI = {
   }
 };
 
-
 export const kitchenAPI = {
   // Get all kitchen orders (chef/admin/manager)
   async getKitchenOrders(token) {
@@ -1245,66 +1244,66 @@ export const kitchenAPI = {
       throw error;
     }
   },
-// In api.js - kitchenAPI section
-async updateOrderItemStatus(orderItemId, status, token) {
-  try {
-    console.log(`📡 Updating order item ${orderItemId} status to: ${status}`);
-    
-    const response = await fetch(`${API_BASE_URL}/orders/items/${orderItemId}/status`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
-      throw new Error(`Failed to update order item status: ${errorMessage}`);
-    }
-    
-    const data = await response.json();
-    console.log('✅ Order item status update successful:', data);
-    return data;
-    
-  } catch (error) {
-    console.error('❌ Error in updateOrderItemStatus API call:', error);
-    throw error;
-  }
-},
 
-// Add a separate function for updating entire order if needed
-async updateOrderStatus(orderId, status, token) {
-  try {
-    console.log(`📡 Updating entire order ${orderId} status to: ${status}`);
-    
-    // If you have an endpoint for updating entire order status
-    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
-      throw new Error(`Failed to update entire order status: ${errorMessage}`);
+  // Update order item status - CORRECTED ENDPOINT
+  async updateOrderItemStatus(orderItemId, status, token) {
+    try {
+      console.log(`📡 Updating order item ${orderItemId} status to: ${status}`);
+      
+      const response = await fetch(`${API_BASE_URL}/kitchen/items/${orderItemId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
+        throw new Error(`Failed to update order item status: ${errorMessage}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Order item status update successful:', data);
+      return data;
+      
+    } catch (error) {
+      console.error('❌ Error in updateOrderItemStatus API call:', error);
+      throw error;
     }
-    
-    const data = await response.json();
-    console.log('✅ Entire order status update successful:', data);
-    return data;
-    
-  } catch (error) {
-    console.error('❌ Error in updateOrderStatus API call:', error);
-    throw error;
-  }
-},
+  },
+
+  // Update entire order status - NEW ENDPOINT
+  async updateOrderStatus(orderId, status, token) {
+    try {
+      console.log(`📡 Updating entire order ${orderId} status to: ${status}`);
+      
+      const response = await fetch(`${API_BASE_URL}/kitchen/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
+        throw new Error(`Failed to update entire order status: ${errorMessage}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Entire order status update successful:', data);
+      return data;
+      
+    } catch (error) {
+      console.error('❌ Error in updateOrderStatus API call:', error);
+      throw error;
+    }
+  },
 
   // Mark entire order as ready
   async markOrderReady(orderId, token) {
@@ -1358,6 +1357,7 @@ async updateOrderStatus(orderId, status, token) {
     }
   }
 };
+
 // Stations API endpoints
 export const stationsAPI = {
   // ========== GET ALL STATIONS (FIXED TO MATCH OTHER APIS) ==========

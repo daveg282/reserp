@@ -6,7 +6,6 @@ export default function OrderDetailModal({
   selectedOrder, 
   setSelectedOrder, 
   updateOrderStatus,  // Changed from updateItemStatus
-  onStartPreparation  // Added for ingredient checks
 }) {
   const { t } = useTranslation('chef');
   const [updating, setUpdating] = useState(false);

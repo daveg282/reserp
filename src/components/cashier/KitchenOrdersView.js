@@ -1,12 +1,12 @@
 'use client';
 
 export default function KitchenOrdersView({ 
-  orders = [],  // Provide default empty array
-  markOrderReady, 
-  completeOrder, 
-  completeOrderWithPayment,
-  isLoading, 
-  error, 
+  orders = [],
+  markOrderPreparing,  // For pending → preparing
+  markOrderReady,      // For preparing → ready  
+  completeOrder,       // For ready → complete/billing
+  isLoading,
+  error,
   onRefresh 
 }) {
   const orderStatuses = [
@@ -15,7 +15,7 @@ export default function KitchenOrdersView({
       title: 'Pending',
       badgeColor: 'bg-blue-100 text-blue-700',
       cardColor: 'bg-blue-50 border-blue-200',
-      buttonColor: 'bg-blue-600 hover:bg-blue-700'
+      buttonColor: 'bg-orange-600 hover:bg-orange-700'
     },
     {
       status: 'preparing',
@@ -29,7 +29,7 @@ export default function KitchenOrdersView({
       title: 'Ready for Pickup',
       badgeColor: 'bg-green-100 text-green-700',
       cardColor: 'bg-green-50 border-green-200',
-      buttonColor: 'bg-green-600 hover:bg-green-700'
+      buttonColor: 'bg-purple-600 hover:bg-purple-700'
     }
   ];
 
@@ -39,6 +39,31 @@ export default function KitchenOrdersView({
   // Filter orders by status for display
   const getOrdersByStatus = (status) => {
     return safeOrders.filter(order => order && order.status === status);
+  };
+
+  // Helper function to get items from order (handles both formats)
+  const getOrderItems = (order) => {
+    if (!order) return [];
+    
+    // Check if order has items property
+    if (order.items && Array.isArray(order.items)) {
+      return order.items;
+    }
+    
+    // Check if order has rawOrder with items
+    if (order.rawOrder && order.rawOrder.items && Array.isArray(order.rawOrder.items)) {
+      return order.rawOrder.items;
+    }
+    
+    return [];
+  };
+
+  // Helper function to get item name
+  const getItemName = (item) => {
+    if (!item) return 'Unknown Item';
+    
+    // Try different possible property names
+    return item.item_name || item.name || `Item ${item.id || item.menu_item_id || ''}`;
   };
 
   // Count active orders
@@ -114,92 +139,96 @@ export default function KitchenOrdersView({
               </div>
               <div className="space-y-4">
                 {statusOrders.length > 0 ? (
-                  statusOrders.map(order => (
-                    <div key={order.id} className="border rounded-lg p-4 bg-gray-50">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h5 className="font-bold text-gray-900">Order #{order.orderNumber || order.id}</h5>
-                          <p className="text-sm text-gray-600">Table: {order.tableNumber || 'N/A'}</p>
+                  statusOrders.map(order => {
+                    const orderItems = getOrderItems(order);
+                    
+                    return (
+                      <div key={order.id} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h5 className="font-bold text-gray-900">Order #{order.orderNumber || order.id}</h5>
+                            <p className="text-sm text-gray-600">Table: {order.tableNumber || 'N/A'}</p>
+                          </div>
+                          <span className="text-sm text-gray-500">
+                            {order.orderTime ? 
+                              new Date(order.orderTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                              '--:--'}
+                          </span>
                         </div>
-                        <span className="text-sm text-gray-500">
-                          {new Date(order.orderTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      
-                      <div className="mb-3">
-                        <p className="text-sm text-gray-700 mb-1">Customer: {order.customerName || 'Walk-in'}</p>
-                        <p className="text-sm font-medium text-gray-900">Total: ${order.total?.toFixed(2) || '0.00'}</p>
-                      </div>
-                      
-                      {/* Items Preview */}
-                      <div className="mb-3">
-                        <p className="text-sm font-medium text-gray-900 mb-1">Items:</p>
-                        {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
-                          <ul className="text-sm text-gray-700 space-y-1">
-                            {order.items.slice(0, 2).map((item, idx) => (
-                              <li key={idx}>
-                                {item.quantity}x {item.name || `Item ${idx + 1}`}
-                              </li>
-                            ))}
-                            {order.items.length > 2 && (
-                              <li className="text-gray-500">+{order.items.length - 2} more items</li>
-                            )}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-gray-500">No items listed</p>
-                        )}
-                      </div>
-                      
-                      {/* Action Buttons */}
-                      <div className="flex gap-2">
-                        {statusConfig.status === 'ready' && (
-                          <>
-                            {order.payment_status !== 'paid' ? (
-                              <>
-                                <button
-                                  onClick={() => completeOrder(order.id)}
-                                  className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-                                >
-                                  Complete
-                                </button>
-                                <button
-                                  onClick={() => completeOrderWithPayment(order.id, 'cash')}
-                                  className="flex-1 bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-700 transition"
-                                >
-                                  Pay Now
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                onClick={() => markOrderReady(order.id)}
-                                className="flex-1 bg-purple-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-purple-700 transition"
-                              >
-                                Buzz Pager
-                              </button>
-                            )}
-                          </>
-                        )}
                         
-                        {statusConfig.status === 'pending' && (
-                          <button
-                            onClick={() => markOrderReady(order.id)}
-                            className="flex-1 bg-orange-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-orange-700 transition"
-                          >
-                            Mark as Ready
-                          </button>
-                        )}
+                        <div className="mb-3">
+                          <p className="text-sm text-gray-700 mb-1">Customer: {order.customerName || 'Walk-in'}</p>
+                          {order.total && (
+                            <p className="text-sm font-medium text-gray-900">Total: ${parseFloat(order.total).toFixed(2)}</p>
+                          )}
+                        </div>
                         
-                        {statusConfig.status === 'preparing' && (
-                          <button
-                            onClick={() => markOrderReady(order.id)}
-                            className="flex-1 bg-amber-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-amber-700 transition"
-                          >
-                            Ready for Pickup
-                          </button>
-                        )}
+                        {/* Items Preview */}
+                        <div className="mb-3">
+                          <p className="text-sm font-medium text-gray-900 mb-1">Items:</p>
+                          {orderItems.length > 0 ? (
+                            <ul className="text-sm text-gray-700 space-y-1">
+                              {orderItems.slice(0, 20).map((item, idx) => (
+                                <li key={idx} className="flex justify-between">
+                                  <span>
+                                    {item.quantity || 1}x {getItemName(item)}
+                                  </span>
+                                  <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                    item.status === 'ready' ? 'bg-green-100 text-green-700' :
+                                    item.status === 'preparing' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-blue-100 text-blue-700'
+                                  }`}> ETB-
+                                    {item.price}
+                                     
+                                  </span>
+                                </li>
+                              ))}
+                              {orderItems.length > 20 && (
+                                <li className="text-gray-500 text-xs">
+                                  +{orderItems.length - 20} more item{orderItems.length - 20 !== 1 ? 's' : ''}
+                                </li>
+                              )}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-gray-500">No items listed</p>
+                          )}
+                        </div>
+                        
+                        {/* Action Buttons - 3-Step Workflow */}
+                        <div className="flex gap-2">
+                          {/* STEP 1: PENDING → Mark as Preparing */}
+                          {statusConfig.status === 'pending' && (
+                            <button
+                              onClick={() => markOrderPreparing(order.id)}
+                              className={`flex-1 ${statusConfig.buttonColor} text-white py-2 px-3 rounded-lg text-sm font-medium hover:opacity-90 transition`}
+                            >
+                              Mark as Preparing
+                            </button>
+                          )}
+                          
+                          {/* STEP 2: PREPARING → Mark as Ready */}
+                          {statusConfig.status === 'preparing' && (
+                            <button
+                              onClick={() => markOrderReady(order.id)}
+                              className={`flex-1 ${statusConfig.buttonColor} text-white py-2 px-3 rounded-lg text-sm font-medium hover:opacity-90 transition`}
+                            >
+                              Mark as Ready
+                            </button>
+                          )}
+                          
+                          {/* STEP 3: READY → Complete (goes to billing) */}
+                          {statusConfig.status === 'ready' && (
+                            <button
+                              onClick={() => completeOrder(order.id)}
+                              className={`flex-1 ${statusConfig.buttonColor} text-white py-2 px-3 rounded-lg text-sm font-medium hover:opacity-90 transition`}
+                            >
+                              Complete
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-8 bg-gray-50 rounded-lg">
                     <p className="text-gray-500">

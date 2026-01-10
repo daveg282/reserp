@@ -11,6 +11,22 @@ export default function CartSummary({
   clearCart,
   tables
 }) {
+  
+  const handlePlaceOrder = () => {
+    // Get the customer name from currentOrder
+    const customerName = currentOrder.customerName || '';
+    
+    // If no customer name entered, use table number or default
+    let finalCustomerName = customerName.trim();
+    if (!finalCustomerName) {
+      const selectedTable = tables.find(t => t.id === currentOrder.tableId);
+      finalCustomerName =  'Walk-in Customer';
+    }
+    
+    // Call placeOrder with the STRING customer name
+    placeOrder(finalCustomerName);
+  };
+
   return (
     <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6 sticky top-4">
       <h3 className="text-lg lg:text-xl font-bold text-gray-900 mb-4 lg:mb-6">Order Summary</h3>
@@ -18,26 +34,36 @@ export default function CartSummary({
       {/* Customer Information */}
       <div className="space-y-3 lg:space-y-4 mb-4 lg:mb-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Customer Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Customer Name <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
-            value={currentOrder.customerName}
+            value={currentOrder.customerName || ''}
             onChange={(e) => setCurrentOrder(prev => ({ ...prev, customerName: e.target.value }))}
-            placeholder="Enter customer name"
+            placeholder="Enter customer name or leave empty"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
           />
+          <p className="text-xs text-gray-500 mt-1">
+            Leave empty to use table number
+          </p>
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Table Number (Optional)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Table Number</label>
           <select
             value={currentOrder.tableId || ''}
-            onChange={(e) => setCurrentOrder(prev => ({ ...prev, tableId: e.target.value ? parseInt(e.target.value) : null }))}
+            onChange={(e) => setCurrentOrder(prev => ({ 
+              ...prev, 
+              tableId: e.target.value ? parseInt(e.target.value) : null 
+            }))}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
           >
             <option value="">Takeaway / No Table</option>
             {tables.map(table => (
-              <option key={table.id} value={table.id}>Table {table.number} ({table.section})</option>
+              <option key={table.id} value={table.id}>
+                Table {table.number} ({table.section})
+              </option>
             ))}
           </select>
         </div>
@@ -45,7 +71,9 @@ export default function CartSummary({
 
       {/* Cart Items */}
       <div className="space-y-3 lg:space-y-4 mb-4 lg:mb-6">
-        <h4 className="font-semibold text-gray-900">Cart Items ({cart.reduce((total, item) => total + item.quantity, 0)})</h4>
+        <h4 className="font-semibold text-gray-900">
+          Cart Items ({cart.reduce((total, item) => total + item.quantity, 0)})
+        </h4>
         {cart.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-4">Cart is empty</p>
         ) : (
@@ -73,20 +101,24 @@ export default function CartSummary({
         <div className="border-t border-gray-200 pt-4 lg:pt-6">
           <div className="flex justify-between items-center mb-4 lg:mb-6">
             <span className="text-lg lg:text-xl font-bold text-gray-900">Total:</span>
-            <span className="text-lg lg:text-xl font-bold text-blue-600">ETB {cartTotal}</span>
+            <span className="text-lg lg:text-xl font-bold text-blue-600">
+              ETB {cartTotal.toFixed(2)}
+            </span>
           </div>
           
           <div className="space-y-2">
             <button
-              onClick={placeOrder}
-              disabled={!currentOrder.customerName}
+              onClick={handlePlaceOrder}
+              disabled={!currentOrder.tableId}
               className={`w-full py-3 lg:py-4 rounded-xl font-semibold text-sm lg:text-lg shadow-lg transition-colors ${
-                currentOrder.customerName
+                currentOrder.tableId
                   ? 'bg-green-600 hover:bg-green-700 text-white'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
-              {currentOrder.customerName ? `Place Order - ETB ${cartTotal}` : 'Enter Customer Name'}
+              {currentOrder.tableId 
+                ? `Place Order - ETB ${cartTotal.toFixed(2)}`
+                : 'Select Table First'}
             </button>
             
             <button

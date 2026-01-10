@@ -12,24 +12,18 @@ export default function OrdersView({
   searchQuery, 
   setSearchQuery, 
   stations, 
-  updateOrderStatus,  // For updating entire order status
+  updateOrderStatus,  // This updates ENTIRE order status
   setSelectedOrder,
-  isLoading = false,
-  onStartPreparation  // For ingredient checks
+  isLoading = false
+  // Removed: onStartPreparation (not needed anymore)
 }) {
   const { t } = useTranslation('chef');
-  const [localOrders, setLocalOrders] = useState([]);
   const [mounted, setMounted] = useState(false);
 
   // Set mounted state
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Sync local orders with parent orders
-  useEffect(() => {
-    setLocalOrders(orders);
-  }, [orders]);
 
   // Don't render during SSR
   if (!mounted) {
@@ -54,7 +48,8 @@ export default function OrdersView({
     );
   }
 
-  const filteredOrders = localOrders.filter(order => {
+  // Filter orders directly - NO local state needed
+  const filteredOrders = orders.filter(order => {
     if (filter === 'active' && order.status === 'completed') return false;
     if (filter === 'completed' && order.status !== 'completed') return false;
     if (stationFilter !== 'all') {
@@ -70,16 +65,7 @@ export default function OrdersView({
     return true;
   });
 
-  const handleOrderStatusUpdate = async (orderId, newStatus) => {
-    try {
-      await updateOrderStatus(orderId, newStatus);
-      setLocalOrders(prev => prev.map(order => 
-        order.id === orderId ? { ...order, status: newStatus } : order
-      ));
-    } catch (error) {
-      console.error('Error updating order status:', error);
-    }
-  };
+  // REMOVED: handleOrderStatusUpdate function - use updateOrderStatus directly
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -138,10 +124,10 @@ export default function OrdersView({
             key={order.id}
             order={order}
             stations={stations}
-            updateOrderStatus={handleOrderStatusUpdate}
+            updateOrderStatus={updateOrderStatus}  // Pass directly from parent
             setSelectedOrder={setSelectedOrder}
             isLoading={isLoading}
-            onStartPreparation={onStartPreparation}  // Pass this down
+            // Removed: onStartPreparation
           />
         ))}
       </div>

@@ -5,10 +5,10 @@ import { Clock, CheckCircle, ChefHat } from 'lucide-react';
 export default function OrderCard({ 
   order, 
   stations, 
-  updateOrderStatus,
+  updateOrderStatus,  // This is for updating ENTIRE order status
   setSelectedOrder,
-  isLoading = false,
-  onStartPreparation  // This should be used for ingredient checks
+  isLoading = false
+  // Removed: onStartPreparation prop
 }) {
   const { t } = useTranslation('chef');
   const [mounted, setMounted] = useState(false);
@@ -94,18 +94,12 @@ export default function OrderCard({
   const statusConfig = getStatusConfig(order.status);
   const StatusIcon = statusConfig.icon;
 
-  // Handle start preparing with ingredient check
+  // Handle start preparing WITHOUT ingredient check
   const handleStartPreparing = async () => {
     if (isLoading) return;
     
-    // Check if there's a first item to check ingredients for
-    const firstItem = order.items?.[0];
-    if (firstItem && onStartPreparation) {
-      const canPrepare = await onStartPreparation(firstItem.id, firstItem.menu_item_id);
-      if (!canPrepare) return;
-    }
-    
-    // Update order status to preparing
+    // Directly update entire order status to preparing
+    // No ingredient check anymore
     await updateOrderStatus(order.id, 'preparing');
   };
 
@@ -191,6 +185,16 @@ export default function OrderCard({
               className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm font-medium transition disabled:opacity-50"
             >
               {t('orders.markReady')}
+            </button>
+          )}
+          
+          {order.status === 'ready' && (
+            <button
+              onClick={() => updateOrderStatus(order.id, 'completed')}
+              disabled={isLoading}
+              className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm font-medium transition disabled:opacity-50"
+            >
+              {t('orders.completeOrder')}
             </button>
           )}
         </div>

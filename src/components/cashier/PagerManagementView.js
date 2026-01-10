@@ -38,11 +38,6 @@ export default function PagerManagementView({
       label: 'View Pager History',
       color: 'purple',
       action: () => setShowPagerModal(true)
-    },
-    {
-      label: 'Reset Demo',
-      color: 'gray',
-      action: resetDemo
     }
   ];
 
@@ -64,7 +59,7 @@ export default function PagerManagementView({
       {/* Pager Actions */}
       <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
         <h4 className="font-bold text-gray-900 text-lg mb-4 lg:mb-6">Pager Controls</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {pagerControls.map((control, index) => (
             <button
               key={index}

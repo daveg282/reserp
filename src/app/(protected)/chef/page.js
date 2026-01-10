@@ -22,9 +22,12 @@ import MobileOverlay from '../../../components/chef/MobileOverlay';
 import { stations as mockStations } from '../../../lib/data';
 import '../../../lib/i18n';
 
-// Helper function to get overall order status
+
 const getOverallOrderStatus = (items) => {
   if (!items || items.length === 0) return 'pending';
+  
+  // If backend provides order.status, use that
+  // Otherwise calculate from items
   
   const allCompleted = items.every(item => item.status === 'completed');
   if (allCompleted) return 'completed';
@@ -97,41 +100,50 @@ export default function ChefDashboard() {
   const [reportError, setReportError] = useState(null);
 
   // Transform backend orders to frontend format
-  const transformBackendOrders = (backendOrders) => {
-    if (!Array.isArray(backendOrders)) return [];
-    
-    return backendOrders.map(order => {
-      try {
-        return {
-          id: order.id || Math.random(),
-          orderNumber: order.order_number || order.orderNumber || `ORD-${order.id}`,
-          tableNumber: order.table_number || order.tableNumber || `T${order.table_id || '?'}`,
-          orderTime: order.order_time || order.orderTime || new Date().toISOString(),
-          status: getOverallOrderStatus(order.items || []),
-          items: (Array.isArray(order.items) ? order.items : []).map(item => ({
-            id: item.id || Math.random(),
-            name: item.item_name || item.name || 'Unknown Item',
-            quantity: item.quantity || 1,
-            status: item.status || 'pending',
-            station: mapCategoryToStation(item.category_name || item.category || 'Unknown'),
-            specialRequest: item.special_instructions || item.specialRequest || '',
-            prepTime: item.preparation_time || item.prepTime || 10,
-            category: item.category_name || item.category,
-            menu_item_id: item.menu_item_id || item.menuItemId
-          })),
-          waiterName: order.waiter_name || order.waiterName || 'Waiter',
-          customerNotes: order.notes || order.customerNotes || '',
-          startedTime: order.started_time || order.startedTime,
-          readyTime: order.ready_time || order.readyTime,
-          completedTime: order.completed_time || order.completedTime
-        };
-      } catch (error) {
-        console.error('Error transforming order:', error, order);
-        return null;
-      }
-    }).filter(Boolean);
-  };
-
+  // CORRECTED: Transform backend orders to frontend format
+const transformBackendOrders = (backendOrders) => {
+  if (!Array.isArray(backendOrders)) return [];
+  
+  return backendOrders.map(order => {
+    try {
+      // DEBUG: See what the backend actually provides
+      console.log('🎯 Order from backend:', {
+        orderId: order.id,
+        backendStatus: order.status,  // This should exist after fixing backend query
+        hasItems: Array.isArray(order.items),
+        itemStatuses: order.items?.map(i => i.status)
+      });
+      
+      return {
+        id: order.id || Math.random(),
+        orderNumber: order.order_number || order.orderNumber || `ORD-${order.id}`,
+        tableNumber: order.table_number || order.tableNumber || `T${order.table_id || '?'}`,
+        orderTime: order.order_time || order.orderTime || new Date().toISOString(),
+        // ✅ FIX: Use order.status from backend, NOT calculated
+        status: order.status || 'pending',  // ← CHANGE THIS LINE!
+        items: (Array.isArray(order.items) ? order.items : []).map(item => ({
+          id: item.id || Math.random(),
+          name: item.item_name || item.name || 'Unknown Item',
+          quantity: item.quantity || 1,
+          status: item.status || 'pending',
+          station: mapCategoryToStation(item.category_name || item.category || 'Unknown'),
+          specialRequest: item.special_instructions || item.specialRequest || '',
+          prepTime: item.preparation_time || item.prepTime || 10,
+          category: item.category_name || item.category,
+          menu_item_id: item.menu_item_id || item.menuItemId
+        })),
+        waiterName: order.waiter_name || order.waiterName || 'Waiter',
+        customerNotes: order.notes || order.customerNotes || '',
+        startedTime: order.started_time || order.startedTime,
+        readyTime: order.ready_time || order.readyTime,
+        completedTime: order.completed_time || order.completedTime
+      };
+    } catch (error) {
+      console.error('❌ Error transforming order:', error, order);
+      return null;
+    }
+  }).filter(Boolean);
+};
   // Transform kitchen stats data for ReportsView
   const transformKitchenStatsData = (apiData) => {
     try {
@@ -598,7 +610,7 @@ export default function ChefDashboard() {
     }
   };
 
- // In page.js - updateOrderStatus function
+ // UPDATED: Update order status function - FIXED VERSION
 const updateOrderStatus = async (orderId, newStatus) => {
   try {
     console.log(`🔄 Updating order ${orderId} to ${newStatus}`);
@@ -608,19 +620,8 @@ const updateOrderStatus = async (orderId, newStatus) => {
       throw new Error('Authentication required');
     }
     
-    // Since your endpoint works with order items, we need to update ALL items
-    // First, find the order
-    const orderToUpdate = orders.find(order => order.id === orderId);
-    if (!orderToUpdate) {
-      throw new Error('Order not found');
-    }
-    
-    // Update each item in the order
-    const updatePromises = orderToUpdate.items?.map(item => 
-      kitchenAPI.updateOrderItemStatus(item.id, newStatus, token)
-    ) || [];
-    
-    await Promise.all(updatePromises);
+    const result = await ordersAPI.updateOrderStatus(orderId, newStatus, token);
+    console.log('✅ Order status updated via ordersAPI:', result);
     
     // Update local state
     setOrders(prev => prev.map(order => {
@@ -993,7 +994,6 @@ const updateOrderStatus = async (orderId, newStatus) => {
               setSelectedOrder={setSelectedOrder}
               isLoading={ordersLoading}
               error={ordersError}
-              onStartPreparation={handleStartPreparation}
             />
           )}
 
