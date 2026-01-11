@@ -42,19 +42,13 @@ export default function OrderTakingView({
       label: 'Ready for Pickup',
       icon: CheckCircle,
       color: 'amber'
-    },
-    {
-      value: `ETB ${todaySales.total.toLocaleString()}`,
-      label: "Today's Revenue",
-      icon: DollarSign,
-      color: 'purple'
     }
   ];
 
   return (
     <div className="space-y-6 lg:space-y-8">
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}

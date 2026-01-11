@@ -803,7 +803,6 @@ const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT) => {
               <p><strong>RECEIPT #${selectedOrder.orderNumber}</strong></p>
               <p>Date: ${new Date().toLocaleString()}</p>
               <p>TIN: 0000000</p>
-              <p>VAT Reg:0000000</p>
             </div>
             
             <div>
@@ -837,10 +836,6 @@ const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT) => {
               <div class="row">
                 <span>VAT (15%):</span>
                 <span>${vatAmount.toFixed(2)} ETB</span>
-              </div>
-              <div class="row">
-                <span>Discount:</span>
-                <span>-${(paymentData.discount || 0).toFixed(2)} ETB</span>
               </div>
               <div class="row highlight">
                 <span>FINAL TOTAL:</span>
