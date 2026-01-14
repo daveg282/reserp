@@ -708,11 +708,11 @@ export default function SelfServeCashierDashboard() {
         } else {
           // Fallback to simple receipt if HTML endpoint fails
           console.warn('HTML receipt endpoint failed, using fallback');
-          generateFallbackReceipt(subtotal, vatAmount, totalWithVAT);
+          generateFallbackReceipt(subtotal, vatAmount, totalWithVAT, paymentPayload);
         }
       } catch (receiptError) {
         console.warn('Could not generate HTML receipt:', receiptError);
-        generateFallbackReceipt(subtotal, vatAmount, totalWithVAT);
+        generateFallbackReceipt(subtotal, vatAmount, totalWithVAT, paymentPayload);
       }
       
       alert(`✅ Payment processed successfully! Order ${selectedOrder.orderNumber} is now paid.`);
@@ -733,12 +733,25 @@ export default function SelfServeCashierDashboard() {
 };
 
 // Updated Fallback receipt generation function with VAT
-const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT) => {
+const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT, paymentPayload) => {
   if (!selectedOrder) return;
   
   const receiptWindow = window.open('', '_blank');
   if (receiptWindow) {
     const finalTotal = totalWithVAT + (paymentData.tip || 0);
+    const tipAmount = paymentData.tip || 0;
+    const discountAmount = paymentData.discount || 0;
+    
+    // Format payment method display
+    const formatPaymentMethod = (method) => {
+      if (!method) return 'CASH';
+      return method.toUpperCase();
+    };
+    
+    // Format table information
+    const tableInfo = selectedOrder.table ? 
+      (selectedOrder.table.name || selectedOrder.table.number || selectedOrder.table) : 
+      selectedOrder.tableNumber || 'Takeaway';
     
     receiptWindow.document.write(`
       <html>
@@ -765,11 +778,36 @@ const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT) => {
               font-size: 24px;
               font-weight: bold;
               margin: 0;
+              text-transform: uppercase;
+            }
+            .restaurant-address {
+              font-size: 14px;
+              margin: 5px 0;
+              text-transform: uppercase;
             }
             .row {
               display: flex;
               justify-content: space-between;
               margin: 8px 0;
+              padding: 4px 0;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 15px 0;
+            }
+            .items-table th {
+              text-align: left;
+              border-bottom: 1px solid #000;
+              padding: 8px 0;
+              font-weight: bold;
+            }
+            .items-table td {
+              padding: 6px 0;
+              border-bottom: 1px dashed #ccc;
+            }
+            .items-table tr:last-child td {
+              border-bottom: none;
             }
             .total-section {
               border-top: 2px solid #000;
@@ -779,6 +817,12 @@ const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT) => {
             .highlight {
               font-weight: bold;
               font-size: 18px;
+            }
+            .payment-info {
+              background-color: #f5f5f5;
+              padding: 15px;
+              margin: 20px 0;
+              border-radius: 5px;
             }
             .footer {
               text-align: center;
@@ -792,41 +836,65 @@ const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT) => {
               text-align: center;
               margin-top: 10px;
             }
+            .section-title {
+              font-weight: bold;
+              margin: 15px 0 8px 0;
+              font-size: 16px;
+            }
+            .amount-positive {
+              color: #28a745;
+            }
+            .amount-negative {
+              color: #dc3545;
+            }
           </style>
         </head>
         <body>
           <div class="receipt">
             <div class="header">
               <h1 class="restaurant-name">KUKU CHICKEN</h1>
-              <p>Dire Diwa</p>
-              <p>Phone: (251) 9-01-55-55-99</p>
+              <p class="restaurant-address">DIRE DIWA ADDIS ABABA</p>
+              <p>Phone: (555) 123-4567</p>
               <p><strong>RECEIPT #${selectedOrder.orderNumber}</strong></p>
               <p>Date: ${new Date().toLocaleString()}</p>
-              <p>TIN: 0000000</p>
             </div>
             
-            <div>
-              <div class="row">
-                <span>Customer:</span>
-                <span><strong>${selectedOrder.customerName}</strong></span>
-              </div>
-              <div class="row">
-                <span>Cashier:</span>
-                <span>${user?.username || 'System'}</span>
-              </div>
+            <div class="section-title">ORDER DETAILS</div>
+            <div class="row">
+              <span>Customer:</span>
+              <span><strong>${selectedOrder.customerName || 'Walk-in Customer'}</strong></span>
+            </div>
+            <div class="row">
+              <span>Table:</span>
+              <span><strong>${tableInfo}</strong></span>
+            </div>
+            <div class="row">
+              <span>Cashier:</span>
+              <span>${user?.username || 'System'}</span>
             </div>
             
-            <div style="margin: 20px 0;">
-              ${selectedOrder.items && selectedOrder.items.length > 0 ? 
-                selectedOrder.items.map(item => `
-                  <div class="row">
-                    <span>${item.name} x${item.quantity}</span>
-                    <span>${(item.price * item.quantity).toFixed(2)} ETB</span>
-                  </div>
-                `).join('') : 
-                '<p>No items found</p>'
-              }
-            </div>
+            <div class="section-title">ORDER ITEMS</div>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th style="text-align: right;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${selectedOrder.items && selectedOrder.items.length > 0 ? 
+                  selectedOrder.items.map(item => `
+                    <tr>
+                      <td>${item.name || item.menuItemName || 'Item'}</td>
+                      <td>${item.quantity || 1}</td>
+                      <td style="text-align: right;">${((item.price || 0) * (item.quantity || 1)).toFixed(2)} ETB</td>
+                    </tr>
+                  `).join('') : 
+                  '<tr><td colspan="4" style="text-align: center;">No items found</td></tr>'
+                }
+              </tbody>
+            </table>
             
             <div class="total-section">
               <div class="row">
@@ -837,6 +905,18 @@ const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT) => {
                 <span>VAT (15%):</span>
                 <span>${vatAmount.toFixed(2)} ETB</span>
               </div>
+              ${tipAmount > 0 ? `
+                <div class="row">
+                  <span>Tip:</span>
+                  <span class="amount-positive">+${tipAmount.toFixed(2)} ETB</span>
+                </div>
+              ` : ''}
+              ${discountAmount > 0 ? `
+                <div class="row">
+                  <span>Discount:</span>
+                  <span class="amount-negative">-${discountAmount.toFixed(2)} ETB</span>
+                </div>
+              ` : ''}
               <div class="row highlight">
                 <span>FINAL TOTAL:</span>
                 <span>${finalTotal.toFixed(2)} ETB</span>
@@ -845,6 +925,7 @@ const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT) => {
             
             <div class="footer">
               <p>Thank you for dining with us!</p>
+              <p class="vat-note">VAT included at 15% | TIN: 0000000</p>
             </div>
           </div>
           <script>
