@@ -16,6 +16,7 @@ import {
   Briefcase,
   DollarSign,
   Users as CustomersIcon,
+  X // Added X icon from cashier sidebar
 } from 'lucide-react';
 
 // Define menu sections with subsections
@@ -25,7 +26,7 @@ const menuSections = [
     icon: Home,
     label: 'Dashboard',
     view: 'dashboard',
-    hasSubsections: false // Dashboard has no subsections
+    hasSubsections: false
   },
   {
     id: 'operations',
@@ -135,10 +136,9 @@ export default function Sidebar({
   };
 
   const handleSectionClick = (section) => {
-    // If it's dashboard (no subsections), just navigate
     if (!section.hasSubsections && !section.subsections) {
       setActiveView(section.view);
-      setExpandedSection(null); // Collapse any expanded sections
+      setExpandedSection(null);
       
       if (window.innerWidth < 1024) {
         setSidebarOpen(false);
@@ -146,16 +146,12 @@ export default function Sidebar({
       return;
     }
     
-    // For sections with subsections
     if (expandedSection === section.view && sidebarOpen) {
-      // If clicking on already expanded section, collapse it
       setExpandedSection(null);
     } else {
-      // Expand this section and set as active
       setExpandedSection(section.view);
       setActiveView(section.view);
       
-      // Set default subsection (first one)
       if (section.subsections && section.subsections.length > 0) {
         setActiveSubsection(section.subsections[0]);
       }
@@ -169,8 +165,6 @@ export default function Sidebar({
   const handleSubsectionClick = (sectionView, subsection) => {
     setActiveView(sectionView);
     setActiveSubsection(subsection);
-    
-    // When clicking a subsection, keep the parent section expanded
     setExpandedSection(sectionView);
     
     if (window.innerWidth < 1024) {
@@ -180,7 +174,7 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* Mobile overlay - Applied cashier style */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -188,31 +182,31 @@ export default function Sidebar({
         />
       )}
       
-      {/* Sidebar */}
-      <div className={`fixed lg:static bg-gradient-to-b from-purple-900 to-purple-800 text-white transition-all duration-300 h-full z-50 overflow-y-auto ${
+      {/* Sidebar - Applied cashier colors and styling */}
+      <div className={`fixed lg:static bg-gradient-to-b from-gray-900 to-gray-800 text-white transition-all duration-300 h-full z-50 overflow-y-auto ${
         sidebarOpen ? 'w-72 translate-x-0' : 'w-20 -translate-x-full lg:translate-x-0'
       } flex flex-col`}>
         
-        {/* Header */}
-        <div className="p-4 lg:p-6 border-b border-purple-700 sticky top-0 bg-purple-900 z-10">
+        {/* Header - Applied cashier styling */}
+        <div className="p-4 lg:p-6 border-b border-gray-700 sticky top-0 bg-gray-900 z-10">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
               <div>
                 <h1 className="text-xl font-bold">Manager Dashboard</h1>
-                <p className="text-xs text-purple-300 mt-1">Bistro Elegante</p>
+                <p className="text-xs text-gray-300 mt-1">Bistro Elegante</p>
               </div>
             )}
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
-              className="p-2 hover:bg-purple-700 rounded-lg transition"
+              className="p-2 hover:bg-gray-700 rounded-lg transition"
             >
-              <Menu className="w-5 h-5" />
+              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1">
+        {/* Navigation - Applied cashier button styling */}
+        <nav className="flex-1 p-4 space-y-2">
           {menuSections.map((section) => {
             const Icon = section.icon;
             const isActive = activeView === section.view;
@@ -221,13 +215,13 @@ export default function Sidebar({
             
             return (
               <div key={section.id} className="mb-1">
-                {/* Main Section Button */}
+                {/* Main Section Button - Applied cashier button styling */}
                 <button
                   onClick={() => handleSectionClick(section)}
-                  className={`w-full flex items-center justify-between px-3 py-3 rounded-xl transition ${
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition ${
                     isActive 
-                      ? 'bg-purple-600 text-white shadow-lg' 
-                      : 'hover:bg-purple-700 text-purple-100'
+                      ? 'bg-blue-600 text-white shadow-lg' 
+                      : 'hover:bg-gray-700 text-gray-100'
                   }`}
                 >
                   <div className="flex items-center space-x-3">
@@ -237,7 +231,7 @@ export default function Sidebar({
                     )}
                   </div>
                   
-                  {/* Expand/Collapse arrow (only for sections with subsections) */}
+                  {/* Expand/Collapse arrow */}
                   {sidebarOpen && hasSubsections && (
                     <svg 
                       className={`w-4 h-4 ml-2 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -250,9 +244,9 @@ export default function Sidebar({
                   )}
                 </button>
                 
-                {/* Subsection List (only show if has subsections AND sidebar is open AND section is expanded) */}
+                {/* Subsection List - Applied cashier color scheme */}
                 {sidebarOpen && isExpanded && hasSubsections && (
-                  <div className="ml-8 mt-1 space-y-1">
+                  <div className="ml-10 mt-2 space-y-1">
                     {section.subsections.map((subsection) => {
                       const isSubsectionActive = activeSubsection === subsection;
                       
@@ -260,10 +254,10 @@ export default function Sidebar({
                         <button
                           key={subsection}
                           onClick={() => handleSubsectionClick(section.view, subsection)}
-                          className={`w-full flex items-center px-3 py-2 rounded-lg transition text-sm ${
+                          className={`w-full flex items-center px-4 py-2 rounded-lg transition text-sm ${
                             isSubsectionActive
-                              ? 'bg-purple-500 text-white'
-                              : 'hover:bg-purple-600 text-purple-200'
+                              ? 'bg-blue-500 text-white'
+                              : 'hover:bg-gray-700 text-gray-200'
                           }`}
                         >
                           <div className="w-2 h-2 rounded-full bg-current mr-3 opacity-70"></div>
@@ -278,27 +272,27 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-purple-700 space-y-4 sticky bottom-0 bg-purple-900">
-          {/* User Profile */}
+        {/* Footer - Applied cashier styling */}
+        <div className="p-4 border-t border-gray-700 space-y-4 sticky bottom-0 bg-gray-900">
+          {/* User Profile - Applied cashier profile styling */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center font-bold flex-shrink-0">
               <Crown className="w-5 h-5" />
             </div>
             {sidebarOpen && (
               <div className="flex-1">
-                <p className="font-semibold text-sm">Manager</p>
-                <p className="text-xs text-purple-300">Full Access</p>
+                <p className="font-semibold text-sm truncate">Manager</p>
+                <p className="text-xs text-gray-300 truncate">Full Access</p>
               </div>
             )}
           </div>
           
-          {/* Logout Button */}
+          {/* Logout Button - Applied cashier logout button styling */}
           {sidebarOpen && (
             <button
               onClick={handleLogout}
               disabled={isLoading}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl font-semibold transition-all duration-200"
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:opacity-50 text-white rounded-xl font-semibold transition-all duration-200"
             >
               {isLoading ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
