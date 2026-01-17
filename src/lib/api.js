@@ -221,245 +221,422 @@ export const authAPI = {
   }
 };
 // Tables API endpoints
+// Tables API endpoints - CORRECTED VERSION
 export const tablesAPI = {
   // ========== PUBLIC ROUTES (no token needed) ==========
   
   // Get all tables
-  async getTables() {
-    const response = await fetch(`${API_BASE_URL}/tables`);
-    if (!response.ok) throw new Error('Failed to fetch tables');
-    const data = await response.json();
-    return data.tables || [];
+  async getTables(filters = {}) {
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const url = `${API_BASE_URL}/tables${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch tables');
+      const data = await response.json();
+      return data.tables || data.data || [];
+    } catch (error) {
+      console.error('Get tables error:', error);
+      throw error;
+    }
   },
 
   // Get available tables
-  async getAvailableTables() {
-    const response = await fetch(`${API_BASE_URL}/tables/available`);
-    if (!response.ok) throw new Error('Failed to fetch available tables');
-    const data = await response.json();
-    return data.tables || [];
+  async getAvailableTables(customer_count = null) {
+    try {
+      const url = customer_count 
+        ? `${API_BASE_URL}/tables/available?customer_count=${customer_count}`
+        : `${API_BASE_URL}/tables/available`;
+      
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch available tables');
+      const data = await response.json();
+      return data.tables || [];
+    } catch (error) {
+      console.error('Get available tables error:', error);
+      throw error;
+    }
   },
 
   // Get single table
   async getTable(id) {
-    const response = await fetch(`${API_BASE_URL}/tables/${id}`);
-    if (!response.ok) throw new Error('Failed to fetch table');
-    const data = await response.json();
-    return data.table || null;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/${id}`);
+      if (!response.ok) throw new Error('Failed to fetch table');
+      const data = await response.json();
+      return data.table || data.data || null;
+    } catch (error) {
+      console.error('Get table error:', error);
+      throw error;
+    }
   },
 
   // Search tables
   async searchTables(query) {
-    const response = await fetch(`${API_BASE_URL}/tables/search?q=${encodeURIComponent(query)}`);
-    if (!response.ok) throw new Error('Failed to search tables');
-    const data = await response.json();
-    return data.tables || [];
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error('Failed to search tables');
+      const data = await response.json();
+      return data.tables || [];
+    } catch (error) {
+      console.error('Search tables error:', error);
+      throw error;
+    }
   },
 
   // Get table statistics
   async getTableStats() {
-    const response = await fetch(`${API_BASE_URL}/tables/stats`);
-    if (!response.ok) throw new Error('Failed to fetch table statistics');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/stats`);
+      if (!response.ok) throw new Error('Failed to fetch table statistics');
+      const data = await response.json();
+      return data.stats || data.data || {};
+    } catch (error) {
+      console.error('Get table stats error:', error);
+      throw error;
+    }
   },
 
   // ========== PROTECTED ROUTES (token needed) ==========
   
   // Create table (admin/manager only)
   async createTable(tableData, token) {
-    const response = await fetch(`${API_BASE_URL}/tables`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(tableData),
-    });
-    if (!response.ok) throw new Error('Failed to create table');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(tableData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to create table');
+      }
+      
+      const data = await response.json();
+      return data.table || data.data;
+    } catch (error) {
+      console.error('Create table error:', error);
+      throw error;
+    }
   },
 
   // Update table (admin/manager only)
   async updateTable(id, tableData, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(tableData),
-    });
-    if (!response.ok) throw new Error('Failed to update table');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(tableData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to update table');
+      }
+      
+      const data = await response.json();
+      return data.table || data.data;
+    } catch (error) {
+      console.error('Update table error:', error);
+      throw error;
+    }
   },
 
   // Delete table (admin only)
   async deleteTable(id, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) throw new Error('Failed to delete table');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to delete table');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Delete table error:', error);
+      throw error;
+    }
   },
 
   // Occupy table (waiter/cashier/admin/manager)
-  async occupyTable(id, customers, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/${id}/occupy`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ customers }),
-    });
-    if (!response.ok) throw new Error('Failed to occupy table');
-    const data = await response.json();
-    return data;
+  async occupyTable(id, customer_count, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/${id}/occupy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ customer_count }), // FIXED: was 'customers' in your code
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to occupy table');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Occupy table error:', error);
+      throw error;
+    }
   },
 
   // Free table (waiter/cashier/admin/manager)
   async freeTable(id, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/${id}/free`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) throw new Error('Failed to free table');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/${id}/free`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to free table');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Free table error:', error);
+      throw error;
+    }
   },
 
   // Reserve table (waiter/cashier/admin/manager)
   async reserveTable(id, reservationData, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/${id}/reserve`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(reservationData),
-    });
-    if (!response.ok) throw new Error('Failed to reserve table');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/${id}/reserve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          customer_count: reservationData.guests || reservationData.customer_count 
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to reserve table');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Reserve table error:', error);
+      throw error;
+    }
   },
 
   // Update table status (admin/manager only)
-  async updateTableStatus(id, status, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/${id}/status`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status }),
-    });
-    if (!response.ok) throw new Error('Failed to update table status');
-    const data = await response.json();
-    return data;
+  async updateTableStatus(id, status, token, customer_count = 0) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status, customer_count }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to update table status');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Update table status error:', error);
+      throw error;
+    }
   },
 
   // ========== PAGER ROUTES ==========
   
   // Get all pagers
-  async getPagers(token) {
-    const response = await fetch(`${API_BASE_URL}/tables/pagers/all`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch pagers');
-    const data = await response.json();
-    return data.pagers || [];
+  async getPagers(token, filters = {}) {
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const url = `${API_BASE_URL}/tables/pagers/all${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to fetch pagers');
+      }
+      
+      const data = await response.json();
+      return data.pagers || [];
+    } catch (error) {
+      console.error('Get pagers error:', error);
+      throw error;
+    }
   },
 
   // Get available pager
   async getAvailablePager(token) {
-    const response = await fetch(`${API_BASE_URL}/tables/pagers/available`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch available pager');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/pagers/available`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to fetch available pager');
+      }
+      
+      const data = await response.json();
+      return data.pager || data.data;
+    } catch (error) {
+      console.error('Get available pager error:', error);
+      throw error;
+    }
   },
 
   // Assign pager to order
   async assignPager(pagerNumber, orderId, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/pagers/${pagerNumber}/assign`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ orderId }),
-    });
-    if (!response.ok) throw new Error('Failed to assign pager');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/pagers/${pagerNumber}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ order_id: orderId }), // FIXED: was 'orderId' in your code
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to assign pager');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Assign pager error:', error);
+      throw error;
+    }
   },
 
   // Activate pager
   async activatePager(pagerNumber, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/pagers/${pagerNumber}/activate`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) throw new Error('Failed to activate pager');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/pagers/${pagerNumber}/activate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to activate pager');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Activate pager error:', error);
+      throw error;
+    }
   },
 
   // Release pager
   async releasePager(pagerNumber, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/pagers/${pagerNumber}/release`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) throw new Error('Failed to release pager');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/pagers/${pagerNumber}/release`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to release pager');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Release pager error:', error);
+      throw error;
+    }
   },
 
   // Buzz pager
   async buzzPager(pagerNumber, token) {
-    const response = await fetch(`${API_BASE_URL}/tables/pagers/${pagerNumber}/buzz`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) throw new Error('Failed to buzz pager');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/pagers/${pagerNumber}/buzz`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to buzz pager');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Buzz pager error:', error);
+      throw error;
+    }
   },
 
   // Get pager statistics
   async getPagerStats(token) {
-    const response = await fetch(`${API_BASE_URL}/tables/pagers/stats`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch pager statistics');
-    const data = await response.json();
-    return data;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tables/pagers/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || 'Failed to fetch pager statistics');
+      }
+      
+      const data = await response.json();
+      return data.stats || data.data;
+    } catch (error) {
+      console.error('Get pager stats error:', error);
+      throw error;
+    }
   },
 };
-
 // Orders API endpoints
 export const ordersAPI = {
   // ========== PROTECTED ROUTES (token needed) ==========

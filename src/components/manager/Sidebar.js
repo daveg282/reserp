@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { 
   Menu, 
   Crown, 
@@ -8,16 +7,15 @@ import {
   RefreshCw,
   Home,
   Users,
-  TrendingUp,
   Package,
   Utensils,
   BarChart3,
   Settings,
   Briefcase,
   DollarSign,
-  Users as CustomersIcon,
-  X // Added X icon from cashier sidebar
+  X
 } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
 
 // Define menu sections with subsections
 const menuSections = [
@@ -40,7 +38,7 @@ const menuSections = [
     icon: Users,
     label: 'Staff Management',
     view: 'staff',
-    subsections: ['employee-roster', 'scheduling', 'performance', 'payroll']
+    subsections: ['employee-roster', 'payroll']
   },
   {
     id: 'inventory',
@@ -54,7 +52,6 @@ const menuSections = [
     icon: Utensils,
     label: 'Menu Management',
     view: 'menu',
-   subsections: ['menu-items', 'special-features', 'menu-analytics']
   },
   {
     id: 'financial',
@@ -70,19 +67,12 @@ const menuSections = [
     view: 'analytics',
     subsections: ['business-intelligence', 'performance-reports', 'custom-reports']
   },
-  {
-    id: 'customers',
-    icon: CustomersIcon,
-    label: 'Customers',
-    view: 'customers',
-    subsections: ['customer-database', 'feedback-reviews', 'loyalty-program']
-  },
    {
     id: 'settings',
     icon: Settings,
     label: 'System & Settings',
     view: 'settings',
-    subsections: ['restaurant-settings', 'user-management', 'system-configuration']
+    subsections: ['restaurant-settings', 'user-management']
   }
 ];
 
@@ -92,30 +82,22 @@ const subsectionLabels = {
   'orders-service': 'Orders & Service',
   'kitchen-operations': 'Kitchen Operations',
   'employee-roster': 'Employee Roster',
-  'scheduling': 'Scheduling',
-  'performance': 'Performance',
   'payroll': 'Payroll',
   'stock-management': 'Stock Management',
   'suppliers': 'Suppliers',
   'recipes-costing': 'Recipes & Costing',
   'menu-items': 'Menu Items',
-  'special-features': 'Special Features',
-  'menu-analytics': 'Menu Analytics',
   'revenue-tracking': 'Revenue Tracking',
   'expenses': 'Expenses',
   'profit-loss': 'Profit & Loss',
   'business-intelligence': 'Business Intelligence',
   'performance-reports': 'Performance Reports',
   'custom-reports': 'Custom Reports',
-  'customer-database': 'Customer Database',
-  'feedback-reviews': 'Feedback & Reviews',
-  'loyalty-program': 'Loyalty Program',
   'restaurant-settings': 'Restaurant Settings',
-  'user-management': 'User Management',
-  'system-configuration': 'System Configuration'
+  'user-management': 'User Management'
 };
 
-export default function Sidebar({ 
+export default function ManagerSidebar({ 
   activeView, 
   setActiveView,
   activeSubsection,
@@ -123,16 +105,28 @@ export default function Sidebar({
   sidebarOpen, 
   setSidebarOpen,
   isLoading,
-  setIsLoading
+  handleLogout
 }) {
-  const router = useRouter();
   const [expandedSection, setExpandedSection] = useState(null);
+  const { user, logout } = useAuth(); 
 
-  const handleLogout = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      router.push('/login');
-    }, 1000);
+  const userName = user?.name || 'Manager';
+  const userEmail = user?.email || 'manager@bistroelegante.com';
+  const userRole = user?.role || 'Manager';
+
+  const handleLogoutClick = async () => {
+    try {
+      if (handleLogout) {
+        await handleLogout();
+      } else if (logout) {
+        await logout();
+      } else {
+        console.log('Logging out...');
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
   };
 
   const handleSectionClick = (section) => {
@@ -174,7 +168,7 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile overlay - Applied cashier style */}
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -182,18 +176,17 @@ export default function Sidebar({
         />
       )}
       
-      {/* Sidebar - Applied cashier colors and styling */}
+      {/* Sidebar */}
       <div className={`fixed lg:static bg-gradient-to-b from-gray-900 to-gray-800 text-white transition-all duration-300 h-full z-50 overflow-y-auto ${
         sidebarOpen ? 'w-72 translate-x-0' : 'w-20 -translate-x-full lg:translate-x-0'
       } flex flex-col`}>
         
-        {/* Header - Applied cashier styling */}
+        {/* Header */}
         <div className="p-4 lg:p-6 border-b border-gray-700 sticky top-0 bg-gray-900 z-10">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
               <div>
                 <h1 className="text-xl font-bold">Manager Dashboard</h1>
-                <p className="text-xs text-gray-300 mt-1">Bistro Elegante</p>
               </div>
             )}
             <button 
@@ -205,7 +198,7 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Navigation - Applied cashier button styling */}
+        {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2">
           {menuSections.map((section) => {
             const Icon = section.icon;
@@ -215,7 +208,6 @@ export default function Sidebar({
             
             return (
               <div key={section.id} className="mb-1">
-                {/* Main Section Button - Applied cashier button styling */}
                 <button
                   onClick={() => handleSectionClick(section)}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition ${
@@ -231,7 +223,6 @@ export default function Sidebar({
                     )}
                   </div>
                   
-                  {/* Expand/Collapse arrow */}
                   {sidebarOpen && hasSubsections && (
                     <svg 
                       className={`w-4 h-4 ml-2 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -244,7 +235,6 @@ export default function Sidebar({
                   )}
                 </button>
                 
-                {/* Subsection List - Applied cashier color scheme */}
                 {sidebarOpen && isExpanded && hasSubsections && (
                   <div className="ml-10 mt-2 space-y-1">
                     {section.subsections.map((subsection) => {
@@ -272,25 +262,27 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Footer - Applied cashier styling */}
+        {/* Footer */}
         <div className="p-4 border-t border-gray-700 space-y-4 sticky bottom-0 bg-gray-900">
-          {/* User Profile - Applied cashier profile styling */}
+          {/* User Profile */}
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center font-bold flex-shrink-0">
               <Crown className="w-5 h-5" />
             </div>
             {sidebarOpen && (
               <div className="flex-1">
-                <p className="font-semibold text-sm truncate">Manager</p>
-                <p className="text-xs text-gray-300 truncate">Full Access</p>
+                <p className="font-semibold text-sm truncate">{userName}</p>
+                <p className="text-xs text-gray-300 truncate">
+                  {userEmail}
+                </p>
               </div>
             )}
           </div>
           
-          {/* Logout Button - Applied cashier logout button styling */}
+          {/* Logout Button */}
           {sidebarOpen && (
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               disabled={isLoading}
               className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:opacity-50 text-white rounded-xl font-semibold transition-all duration-200"
             >

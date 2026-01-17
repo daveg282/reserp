@@ -29,6 +29,9 @@ import KitchenOperationsView from '@/components/manager/KitchenOperationsView';
 // Modal Components
 import StaffDetailModal from '@/components/manager/StaffDetailsModal';
 
+// Table Modal Component
+import TableModal from '@/components/manager/TableModal';
+
 export default function ManagerDashboard() {
   const { t } = useTranslation('manager');
   const { user, logout } = useAuth();
@@ -42,6 +45,11 @@ export default function ManagerDashboard() {
   const [timeRange, setTimeRange] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  
+  // Table Modal State
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [tableModalMode, setTableModalMode] = useState('create'); // 'create' or 'edit'
   
   // Data states
   const [dashboardData, setDashboardData] = useState(null);
@@ -191,7 +199,6 @@ export default function ManagerDashboard() {
     setError(prev => ({ ...prev, dashboard: null }));
     
     try {
-      // Try to fetch with time range parameter
       const response = await reportAPI.getDashboardData(authToken, { period });
       
       console.log('✅ Dashboard data received for', period, ':', response);
@@ -199,14 +206,10 @@ export default function ManagerDashboard() {
       if (response.success) {
         let dashboardData = response.data;
         
-        // Transform API response to match DashboardView expected format
         if (dashboardData) {
-          // If API returns performance_stats directly
           if (dashboardData.performance_stats) {
-            // Ensure all time ranges are present
             const stats = dashboardData.performance_stats;
             
-            // Ensure we have today, week, and month data structures
             const transformedStats = {
               today: stats.today || {
                 revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
@@ -230,7 +233,6 @@ export default function ManagerDashboard() {
             
             dashboardData.performance_stats = transformedStats;
           } else {
-            // If API returns individual fields, structure them properly
             dashboardData = {
               performance_stats: {
                 today: {
@@ -324,7 +326,6 @@ export default function ManagerDashboard() {
             };
           }
         } else {
-          // If no data returned, use empty structure
           dashboardData = {
             performance_stats: {
               today: {
@@ -360,7 +361,6 @@ export default function ManagerDashboard() {
         
         setDashboardData(dashboardData);
       } else {
-        // If API returns success: false but has data field
         if (response.data) {
           console.log('⚠️ API returned success: false but has data, trying to use it:', response.data);
           setDashboardData(response.data);
@@ -373,8 +373,6 @@ export default function ManagerDashboard() {
       console.error('❌ Error fetching dashboard data:', err);
       setError(prev => ({ ...prev, dashboard: err.message }));
       
-      // DO NOT use fallback data - show empty state instead
-      console.log('🔄 Dashboard API failed, showing empty state');
       setDashboardData({
         performance_stats: {
           today: {
@@ -412,15 +410,15 @@ export default function ManagerDashboard() {
   };
 
   // ========== TABLES DATA ==========
-  const fetchTablesData = async () => {
-    console.log('📊 Fetching tables data...');
+  const fetchTablesData = async (filters = {}) => {
+    console.log('📊 Fetching tables data...', filters);
     
     setLoadingData(prev => ({ ...prev, tables: true }));
     setError(prev => ({ ...prev, tables: null }));
     
     try {
-      const tablesData = await tablesAPI.getTables();
-      console.log('✅ Tables data received:', tablesData);
+      const tablesData = await tablesAPI.getTables(filters);
+      console.log('✅ Tables data received:', tablesData.length, 'tables');
       
       setTablesData(tablesData);
       
@@ -430,7 +428,7 @@ export default function ManagerDashboard() {
         available: tablesData.filter(t => t.status === 'available').length,
         occupied: tablesData.filter(t => t.status === 'occupied').length,
         reserved: tablesData.filter(t => t.status === 'reserved').length,
-        maintenance: tablesData.filter(t => t.status === 'maintenance' || t.status === 'disabled').length,
+        maintenance: tablesData.filter(t => t.status === 'maintenance' || t.status === 'disabled').length || 0,
         occupancyRate: tablesData.length > 0 ? 
           `${Math.round((tablesData.filter(t => t.status !== 'available').length / tablesData.length) * 100)}%` : '0%',
         avgTurnover: 'Calculating...'
@@ -475,20 +473,18 @@ export default function ManagerDashboard() {
       
       setOrdersData(ordersData);
       
-      // Calculate stats from real data
       const today = new Date().toISOString().split('T')[0];
       const todayOrders = ordersData.filter(order => 
         order.created_at && order.created_at.startsWith(today)
       );
       
       const totalRevenue = todayOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
-      const averageRevenue = todayOrders.length > 0 ? totalRevenue / todayOrders.length : 0;
       
       const stats = {
         today: {
           total: todayOrders.length,
           revenue: totalRevenue,
-          averageTime: this.calculateAverageOrderTime(todayOrders),
+          averageTime: calculateAverageOrderTime(todayOrders),
           pending: todayOrders.filter(o => o.status === 'pending').length,
           preparing: todayOrders.filter(o => o.status === 'preparing' || o.status === 'preparation').length,
           ready: todayOrders.filter(o => o.status === 'ready').length,
@@ -544,7 +540,7 @@ export default function ManagerDashboard() {
         const completed = new Date(order.completed_at);
         const diffMinutes = (completed - created) / (1000 * 60);
         
-        if (diffMinutes > 0 && diffMinutes < 480) { // Reasonable range: 0-8 hours
+        if (diffMinutes > 0 && diffMinutes < 480) {
           totalMinutes += diffMinutes;
           count++;
         }
@@ -571,7 +567,6 @@ export default function ManagerDashboard() {
     setError(prev => ({ ...prev, kitchen: null }));
     
     try {
-      // Fetch kitchen orders
       const kitchenOrders = await kitchenAPI.getKitchenOrders(authToken);
       console.log('✅ Kitchen data received:', kitchenOrders);
       
@@ -585,7 +580,6 @@ export default function ManagerDashboard() {
         })
       });
       
-      // Calculate kitchen stats from real data
       const stats = {
         totalOrders: kitchenOrders.length,
         urgentOrders: kitchenOrders.filter(order => {
@@ -594,8 +588,8 @@ export default function ManagerDashboard() {
           const minutes = (now - orderTime) / (1000 * 60);
           return minutes > 20;
         }).length,
-        avgPrepTime: this.calculateAveragePrepTime(kitchenOrders),
-        efficiency: this.calculateKitchenEfficiency(kitchenOrders)
+        avgPrepTime: calculateAveragePrepTime(kitchenOrders),
+        efficiency: calculateKitchenEfficiency(kitchenOrders)
       };
       
       setKitchenStats(stats);
@@ -631,7 +625,7 @@ export default function ManagerDashboard() {
         const completed = new Date(order.completed_at);
         const diffMinutes = (completed - started) / (1000 * 60);
         
-        if (diffMinutes > 0 && diffMinutes < 120) { // Reasonable range: 0-2 hours
+        if (diffMinutes > 0 && diffMinutes < 120) {
           totalMinutes += diffMinutes;
           count++;
         }
@@ -657,7 +651,7 @@ export default function ManagerDashboard() {
         const created = new Date(order.created_at);
         const completed = new Date(order.completed_at);
         const diffMinutes = (completed - created) / (1000 * 60);
-        return diffMinutes <= 30; // Orders completed within 30 minutes
+        return diffMinutes <= 30;
       }
       return false;
     }).length;
@@ -827,7 +821,6 @@ export default function ManagerDashboard() {
     setError(prev => ({ ...prev, menu: null }));
     
     try {
-      // Fetch all menu data in parallel
       const [itemsResponse, categoriesResponse, statsResponse] = await Promise.all([
         menuAPI.getMenuItems(),
         menuAPI.getCategories(),
@@ -851,7 +844,92 @@ export default function ManagerDashboard() {
     }
   };
 
-  // ========== TABLE ACTION HANDLERS ==========
+  // ========== TABLE CRUD ACTION HANDLERS ==========
+  const handleCreateTable = async (tableData) => {
+  console.log('➕ Creating new table - data received:', tableData);
+  
+  // Validate that we got data
+  if (!tableData || typeof tableData !== 'object') {
+    console.error('❌ No table data received or invalid data');
+    alert('Error: No table data received');
+    return false;
+  }
+  
+  const authToken = AuthService.getToken();
+  if (!authToken) {
+    alert('Authentication required');
+    return false;
+  }
+  
+  try {
+    // The data should already have customer_count and notes from TableModal
+    console.log('📤 Sending to API:', tableData);
+    
+    const response = await tablesAPI.createTable(tableData, authToken);
+    console.log('✅ API Response:', response);
+    
+    alert('Table created successfully');
+    fetchTablesData();
+    setShowTableModal(false);
+    return true;
+    
+  } catch (err) {
+    console.error('❌ Error creating table:', err);
+    alert(`Error: ${err.message}`);
+    return false;
+  }
+};
+ const handleEditTable = async (tableId, tableData) => {
+  console.log('✏️ Editing table:', tableId, tableData);
+  
+  const authToken = AuthService.getToken();
+  if (!authToken) {
+    alert('Authentication required');
+    return false;
+  }
+  
+  try {
+    const response = await tablesAPI.updateTable(tableId, tableData, authToken);
+    console.log('✅ Table updated successfully:', response);
+    
+    alert('Table updated successfully');
+    fetchTablesData();
+    setShowTableModal(false);
+    return true;
+  } catch (err) {
+    console.error('❌ Error updating table:', err);
+    alert(`Error: ${err.message}`);
+    return false;
+  }
+};
+
+  const handleDeleteTable = async (tableId) => {
+    console.log('🗑️ Deleting table:', tableId);
+    
+    if (!confirm('Are you sure you want to delete this table? This action cannot be undone.')) {
+      return false;
+    }
+    
+    const authToken = AuthService.getToken();
+    if (!authToken) {
+      alert('Authentication required');
+      return false;
+    }
+    
+    try {
+      const response = await tablesAPI.deleteTable(tableId, authToken);
+      console.log('✅ Table deleted successfully:', response);
+      
+      alert('Table deleted successfully');
+      fetchTablesData();
+      return true;
+    } catch (err) {
+      console.error('❌ Error deleting table:', err);
+      alert(`Error: ${err.message}`);
+      return false;
+    }
+  };
+
   const handleOccupyTable = async (tableId) => {
     console.log('👥 Occupying table:', tableId);
     
@@ -862,8 +940,13 @@ export default function ManagerDashboard() {
     }
     
     try {
-      const customers = parseInt(prompt('Number of customers:')) || 2;
-      await tablesAPI.occupyTable(tableId, customers, authToken);
+      const customer_count = parseInt(prompt('Number of customers:')) || 2;
+      if (isNaN(customer_count) || customer_count < 1) {
+        alert('Please enter a valid number of customers (at least 1)');
+        return;
+      }
+      
+      await tablesAPI.occupyTable(tableId, customer_count, authToken);
       alert('Table occupied successfully');
       fetchTablesData();
     } catch (err) {
@@ -898,24 +981,59 @@ export default function ManagerDashboard() {
       return;
     }
     
-    const customerName = prompt('Customer Name:');
-    if (!customerName) return;
-    
-    const guests = parseInt(prompt('Number of guests:')) || 2;
-    
-    const reservationData = {
-      customerName,
-      guests,
-      reservationTime: new Date().toISOString(),
-      notes: prompt('Notes (optional):') || ''
-    };
+    const customer_count = parseInt(prompt('Number of guests:')) || 2;
+    if (isNaN(customer_count) || customer_count < 1) {
+      alert('Please enter a valid number of guests (at least 1)');
+      return;
+    }
     
     try {
-      await tablesAPI.reserveTable(tableId, reservationData, authToken);
+      await tablesAPI.reserveTable(tableId, { customer_count }, authToken);
       alert('Table reserved successfully');
       fetchTablesData();
     } catch (err) {
       alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleUpdateTableStatus = async (tableId, status, customer_count = 0) => {
+    console.log('🔄 Updating table status:', tableId, status);
+    
+    const authToken = AuthService.getToken();
+    if (!authToken) {
+      alert('Authentication required');
+      return;
+    }
+    
+    try {
+      await tablesAPI.updateTableStatus(tableId, status, authToken, customer_count);
+      alert(`Table status updated to ${status}`);
+      fetchTablesData();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  // Table Modal Handlers
+  const openCreateTableModal = () => {
+    setSelectedTable(null);
+    setTableModalMode('create');
+    setShowTableModal(true);
+  };
+
+  const openEditTableModal = (tableId, tableData) => {
+    const table = tablesData.find(t => t.id === tableId);
+    if (table) {
+      setSelectedTable({
+        id: table.id,
+        table_number: table.table_number || table.number,
+        capacity: table.capacity,
+        section: table.section || table.location,
+        status: table.status,
+        notes: table.notes || ''
+      });
+      setTableModalMode('edit');
+      setShowTableModal(true);
     }
   };
 
@@ -990,8 +1108,6 @@ export default function ManagerDashboard() {
       console.log('✅ Menu item added successfully:', response);
       
       alert('Menu item added successfully');
-      
-      // Refresh menu data
       fetchMenuData();
     } catch (err) {
       console.error('❌ Error adding menu item:', err);
@@ -1013,8 +1129,6 @@ export default function ManagerDashboard() {
       console.log('✅ Menu item updated successfully:', response);
       
       alert('Menu item updated successfully');
-      
-      // Refresh menu data
       fetchMenuData();
     } catch (err) {
       console.error('❌ Error updating menu item:', err);
@@ -1036,8 +1150,6 @@ export default function ManagerDashboard() {
       console.log('✅ Menu item deleted successfully:', response);
       
       alert('Menu item deleted successfully');
-      
-      // Refresh menu data
       fetchMenuData();
     } catch (err) {
       console.error('❌ Error deleting menu item:', err);
@@ -1057,8 +1169,6 @@ export default function ManagerDashboard() {
     try {
       const response = await menuAPI.toggleAvailability(itemId, authToken);
       console.log('✅ Menu item availability toggled:', response);
-      
-      // Refresh menu data
       fetchMenuData();
     } catch (err) {
       console.error('❌ Error toggling availability:', err);
@@ -1078,8 +1188,6 @@ export default function ManagerDashboard() {
     try {
       const response = await menuAPI.togglePopular(itemId, authToken);
       console.log('✅ Menu item popular status toggled:', response);
-      
-      // Refresh menu data
       fetchMenuData();
     } catch (err) {
       console.error('❌ Error toggling popular status:', err);
@@ -1102,8 +1210,6 @@ export default function ManagerDashboard() {
       console.log('✅ Category added successfully:', response);
       
       alert('Category added successfully');
-      
-      // Refresh menu data
       fetchMenuData();
     } catch (err) {
       console.error('❌ Error adding category:', err);
@@ -1125,8 +1231,6 @@ export default function ManagerDashboard() {
       console.log('✅ Category updated successfully:', response);
       
       alert('Category updated successfully');
-      
-      // Refresh menu data
       fetchMenuData();
     } catch (err) {
       console.error('❌ Error updating category:', err);
@@ -1148,8 +1252,6 @@ export default function ManagerDashboard() {
       console.log('✅ Category deleted successfully:', response);
       
       alert('Category deleted successfully');
-      
-      // Refresh menu data
       fetchMenuData();
     } catch (err) {
       console.error('❌ Error deleting category:', err);
@@ -1172,8 +1274,6 @@ export default function ManagerDashboard() {
       console.log('✅ User added successfully:', response);
       
       alert('User added successfully');
-      
-      // Refresh users list
       fetchUsers();
     } catch (err) {
       console.error('❌ Error adding user:', err);
@@ -1200,13 +1300,37 @@ export default function ManagerDashboard() {
       console.log('✅ User updated successfully:', response);
       
       alert('User updated successfully');
-      
       fetchUsers();
     } catch (err) {
       console.error('❌ Error updating user:', err);
       alert(`Error: ${err.message}`);
     }
   };
+   const handleLogout = async () => {
+      try {
+        setOrders([]);
+        setIngredients([]);
+        setMenuItems([]);
+        setStations([]);
+        setKitchenReportData(null);
+        
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        if (logout) {
+          await logout();
+        } else {
+          AuthService.clearToken();
+          window.location.href = '/chef/login';
+        }
+        
+      } catch (error) {
+        localStorage.clear();
+        sessionStorage.clear();
+        AuthService.clearToken();
+        window.location.href = '/chef/login';
+      }
+    };
 
   const handleDeleteUser = async (userId) => {
     console.log('🗑️ Deleting user:', userId);
@@ -1222,7 +1346,6 @@ export default function ManagerDashboard() {
       console.log('✅ User deleted successfully:', response);
       
       alert('User deleted successfully');
-      
       fetchUsers();
     } catch (err) {
       console.error('❌ Error deleting user:', err);
@@ -1264,7 +1387,6 @@ export default function ManagerDashboard() {
       console.log('✅ User status updated:', response);
       
       alert(`User ${status ? 'activated' : 'deactivated'}`);
-      
       fetchUsers();
     } catch (err) {
       console.error('❌ Error toggling user status:', err);
@@ -1315,18 +1437,6 @@ export default function ManagerDashboard() {
     }
   };
 
-  const handleLogout = async () => {
-    setIsLoading(true);
-    try {
-      AuthService.removeToken();
-      await logout();
-    } catch (err) {
-      console.error('Logout error:', err);
-      setError(prev => ({ ...prev, dashboard: err.message }));
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleStaffSelect = (staff) => {
     setSelectedStaff(staff);
@@ -1367,11 +1477,180 @@ export default function ManagerDashboard() {
     console.log('🕒 Time range changed to:', newTimeRange);
     setTimeRange(newTimeRange);
     
-    // Refresh dashboard data with new time range
     if (activeView === 'dashboard') {
       fetchDashboardData(newTimeRange);
     }
   };
+  const handleViewReceipt = async (order) => {
+  console.log('📄 Viewing receipt for order:', order);
+  
+  const authToken = AuthService.getToken();
+  if (!authToken) {
+    alert('Authentication required');
+    return;
+  }
+  
+  try {
+    // Call API to get receipt data or generate receipt
+    const receiptData = await ordersAPI.getReceipt(order.id, authToken);
+    
+    if (receiptData.success) {
+      // Open receipt in new window or modal
+      const receiptWindow = window.open('', '_blank');
+      if (receiptWindow) {
+        receiptWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Receipt - ${order.orderNumber || order.id}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
+              .header { text-align: center; margin-bottom: 20px; }
+              .info { margin: 10px 0; }
+              .items { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              .items th, .items td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              .total { text-align: right; font-weight: bold; margin-top: 20px; }
+              @media print { button { display: none; } }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h2>Restaurant Receipt</h2>
+              <p>Order: ${order.orderNumber || order.id}</p>
+              <p>Date: ${new Date(order.orderTime || Date.now()).toLocaleString()}</p>
+            </div>
+            
+            <div class="info">
+              <p><strong>Table:</strong> ${order.tableNumber || 'N/A'}</p>
+              <p><strong>Customer:</strong> ${order.customerName || 'Walk-in'}</p>
+              <p><strong>Server:</strong> ${order.server_name || 'N/A'}</p>
+            </div>
+            
+            <table class="items">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(order.items || []).map(item => `
+                  <tr>
+                    <td>${item.name || item.item_name || 'Item'}</td>
+                    <td>${item.quantity || 1}</td>
+                    <td>ETB ${(item.price || item.unit_price || 0).toFixed(2)}</td>
+                    <td>ETB ${((item.price || item.unit_price || 0) * (item.quantity || 1)).toFixed(2)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <div class="total">
+              <p>Subtotal: ETB ${(order.total || 0).toFixed(2)}</p>
+              <p>VAT: ETB ${(order.vat_amount || 0).toFixed(2)}</p>
+              <p><strong>Total: ETB ${(order.total_with_vat || order.total_amount || 0).toFixed(2)}</strong></p>
+            </div>
+            
+            <div style="margin-top: 30px; text-align: center;">
+              <p>Thank you for your business!</p>
+              <button onclick="window.print()" style="padding: 10px 20px; margin: 10px;">
+                Print Receipt
+              </button>
+              <button onclick="window.close()" style="padding: 10px 20px; margin: 10px;">
+                Close
+              </button>
+            </div>
+          </body>
+          </html>
+        `);
+        receiptWindow.document.close();
+      }
+    } else {
+      throw new Error(receiptData.error || 'Failed to generate receipt');
+    }
+  } catch (err) {
+    console.error('❌ Error viewing receipt:', err);
+    alert(`Error viewing receipt: ${err.message}`);
+  }
+};
+
+const handleDownloadReceipt = async (order) => {
+  console.log('💾 Downloading receipt for order:', order);
+  
+  const authToken = AuthService.getToken();
+  if (!authToken) {
+    alert('Authentication required');
+    return;
+  }
+  
+  try {
+    // Call API to download receipt as PDF
+    const response = await ordersAPI.downloadReceipt(order.id, authToken);
+    
+    if (response.success) {
+      // Create a download link for the receipt
+      const blob = response.data ? new Blob([response.data], { type: 'application/pdf' }) : null;
+      
+      if (blob) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `receipt-${order.orderNumber || order.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Receipt downloaded successfully');
+      }
+    } else {
+      throw new Error(response.error || 'Failed to download receipt');
+    }
+  } catch (err) {
+    console.error('❌ Error downloading receipt:', err);
+    
+    // Fallback: Generate a simple text receipt for download
+    const receiptText = generateTextReceipt(order);
+    const blob = new Blob([receiptText], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `receipt-${order.orderNumber || order.id}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
+};
+
+// Helper function to generate text receipt
+const generateTextReceipt = (order) => {
+  return `
+Restaurant Receipt
+===================
+Order Number: ${order.orderNumber || order.id}
+Date: ${new Date(order.orderTime || Date.now()).toLocaleString()}
+Table: ${order.tableNumber || 'N/A'}
+Customer: ${order.customerName || 'Walk-in'}
+Server: ${order.server_name || 'N/A'}
+Payment: ${order.payment_method || 'cash'} (${order.payment_status || 'pending'})
+
+Items:
+${(order.items || []).map(item => 
+  `  ${item.quantity || 1}x ${item.name || item.item_name || 'Item'}: ETB ${((item.price || item.unit_price || 0) * (item.quantity || 1)).toFixed(2)}`
+).join('\n')}
+
+Subtotal: ETB ${(order.total || 0).toFixed(2)}
+VAT: ETB ${(order.vat_amount || 0).toFixed(2)}
+Total: ETB ${(order.total_with_vat || order.total_amount || 0).toFixed(2)}
+
+Thank you for your business!
+=============================
+`;
+};
+
 
   // ========== RENDER VIEW ==========
   const renderView = () => {
@@ -1380,30 +1659,42 @@ export default function ManagerDashboard() {
       switch (activeSubsection) {
         case 'tables-reservations':
           return (
-            <TablesReservationsView
-              userRole={user.role}
-              tablesData={tablesData}
-              tableStats={tableStats}
-              isLoading={loadingData.tables}
-              error={error.tables}
-              onRefresh={fetchTablesData}
-              onOccupyTable={handleOccupyTable}
-              onFreeTable={handleFreeTable}
-              onReserveTable={handleReserveTable}
-            />
+            <>
+              <TablesReservationsView
+                userRole={user.role}
+                tablesData={tablesData}
+                tableStats={tableStats}
+                isLoading={loadingData.tables}
+                error={error.tables}
+                onRefresh={fetchTablesData}
+                onOccupyTable={handleOccupyTable}
+                onFreeTable={handleFreeTable}
+                onReserveTable={handleReserveTable}
+                onAddTable={openCreateTableModal}
+                onEditTable={openEditTableModal}
+                onDeleteTable={handleDeleteTable}
+              />
+            </>
           );
-        case 'orders-service':
-          return (
-            <OrdersServiceView
-              userRole={user.role}
-              ordersData={ordersData}
-              orderStats={orderStats}
-              isLoading={loadingData.orders}
-              error={error.orders}
-              onRefresh={fetchOrdersData}
-              onUpdateOrderStatus={handleUpdateOrderStatus}
-            />
-          );
+      case 'orders-service':
+  return (
+    <OrdersServiceView
+      userRole={user.role}
+      ordersData={ordersData}
+      orderStats={orderStats}
+      isLoading={loadingData.orders}
+      error={error.orders}
+      onRefresh={fetchOrdersData}
+      onUpdateOrderStatus={handleUpdateOrderStatus}
+      onViewReceipt={handleViewReceipt}
+      onDownloadReceipt={handleDownloadReceipt}
+      totalOrders={ordersData.length}
+      currentPage={1}
+      totalPages={Math.ceil(ordersData.length / 20)}
+      pageSize={20}
+    />
+  );
+
         case 'kitchen-operations':
           return (
             <KitchenOperationsView
@@ -1629,7 +1920,7 @@ export default function ManagerDashboard() {
               <div className="flex gap-2">
                 <button
                   onClick={handleRefresh}
-                  className="text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded"
+                  className="text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded transition-colors"
                 >
                   Retry
                 </button>
@@ -1668,6 +1959,16 @@ export default function ManagerDashboard() {
         showStaffDetails={showStaffDetails}
         setShowStaffDetails={setShowStaffDetails}
         onRefresh={() => fetchStaffPerformance({ period: 'week' })}
+      />
+
+      {/* Table Modal for Create/Edit */}
+      <TableModal
+        show={showTableModal}
+        onClose={() => setShowTableModal(false)}
+        mode={tableModalMode}
+        tableData={selectedTable}
+        onSubmit={tableModalMode === 'create' ? handleCreateTable : handleEditTable}
+        userRole={user.role}
       />
     </div>
   );
