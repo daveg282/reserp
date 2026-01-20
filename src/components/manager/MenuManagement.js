@@ -61,7 +61,7 @@ export default function MenuManagement({
   };
 
   const handleDeleteMenuItem = async (item) => {
-    if (confirm(`Are you sure you want to delete "${item.name}"?`)) {
+    if (confirm(`Are you sure you want to permanently delete "${item.name}"? This action cannot be undone.`)) {
       await onDeleteMenuItem(item.id);
     }
   };
@@ -85,6 +85,11 @@ export default function MenuManagement({
       await onDeleteCategory(category.id);
     }
   };
+  const transformedCategories = (categories || []).map(cat => ({
+  ...cat,
+  // Add any calculated fields
+  item_count: cat.item_count || 0 // This should come from backend stats
+}));
 
   // Loading state
   if (isLoading) {
@@ -180,7 +185,7 @@ export default function MenuManagement({
                 placeholder="Search menu items..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 text-black rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>
 
@@ -192,37 +197,18 @@ export default function MenuManagement({
                   onClick={() => setViewMode('grid')}
                   className={`p-2 rounded-md transition ${viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
                 >
-                  <Grid3x3 className="w-4 h-4" />
+                  <Grid3x3 className="w-4 h-4 text-black" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
                   className={`p-2 rounded-md transition ${viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
                 >
-                  <List className="w-4 h-4" />
+                  <List className="w-4 h-4 text-black" />
                 </button>
               </div>
 
-              {/* Category Filter */}
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="all">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+             
 
-              {/* Status Filter */}
-              <select className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                <option value="all">All Status</option>
-                <option value="available">Available</option>
-                <option value="unavailable">Unavailable</option>
-                <option value="popular">Popular</option>
-              </select>
             </div>
           </div>
 
@@ -261,13 +247,13 @@ export default function MenuManagement({
           )}
         </div>
       ) : (
-        <MenuCategories
-          categories={categories}
-          onEdit={handleEditCategory}
-          onDelete={handleDeleteCategory}
-          onAdd={() => setShowCategoryModal(true)}
-          userRole={userRole}
-        />
+       <MenuCategories
+  categories={transformedCategories}
+  onEdit={handleEditCategory}
+  onDelete={handleDeleteCategory}
+  onAdd={() => setShowCategoryModal(true)}
+  userRole={userRole}
+/>
       )}
 
       {/* Modals */}

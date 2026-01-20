@@ -26,6 +26,12 @@ const menuSections = [
     view: 'dashboard',
     hasSubsections: false
   },
+   {
+    id: 'menu',
+    icon: Utensils,
+    label: 'Menu Management',
+    view: 'menu',
+  },
   {
     id: 'operations',
     icon: Briefcase,
@@ -48,12 +54,6 @@ const menuSections = [
     subsections: ['stock-management', 'suppliers', 'recipes-costing']
   },
   {
-    id: 'menu',
-    icon: Utensils,
-    label: 'Menu Management',
-    view: 'menu',
-  },
-  {
     id: 'financial',
     icon: DollarSign,
     label: 'Financial',
@@ -72,7 +72,7 @@ const menuSections = [
     icon: Settings,
     label: 'System & Settings',
     view: 'settings',
-    subsections: ['restaurant-settings', 'user-management']
+    subsections: ['user-management', 'restaurant-settings', ]
   }
 ];
 

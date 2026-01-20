@@ -913,30 +913,31 @@ export const menuAPI = {
   },
 
   // Get all categories
-  async getCategories() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/menu/categories`);
-      if (!response.ok) throw new Error('Failed to fetch categories');
-      const data = await response.json();
-      return data.categories || [];
-    } catch (error) {
-      console.error('Get categories error:', error);
-      throw error;
-    }
-  },
+  // Get all categories - PUBLIC ROUTE
+async getCategories() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/menu/categories`);
+    if (!response.ok) throw new Error('Failed to fetch categories');
+    const data = await response.json();
+    return data.categories || []; // Returns { success: true, categories: [], count: X }
+  } catch (error) {
+    console.error('Get categories error:', error);
+    throw error;
+  }
+},
 
-  // Get category with items
-  async getCategory(id) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/menu/categories/${id}`);
-      if (!response.ok) throw new Error('Failed to fetch category');
-      const data = await response.json();
-      return data.category || null;
-    } catch (error) {
-      console.error('Get category error:', error);
-      throw error;
-    }
-  },
+// Get category with items - PUBLIC ROUTE
+async getCategory(id) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/menu/categories/${id}`);
+    if (!response.ok) throw new Error('Failed to fetch category');
+    const data = await response.json();
+    return data.category || null; // Returns { success: true, category: {} }
+  } catch (error) {
+    console.error('Get category error:', error);
+    throw error;
+  }
+},
 
   // ========== PROTECTED ROUTES (token needed) ==========
   
@@ -2508,28 +2509,36 @@ async getIngredients(token) {
 // Report API - following your exact chefInventoryAPI pattern
 export const reportAPI = {
   // Get dashboard data for admin/manager
-  async getDashboardData(token) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/reports/dashboard`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch dashboard data');
-      }
-      
-      const data = await response.json();
-      return data;
-      
-    } catch (error) {
-      console.error('Get dashboard data error:', error);
-      throw error;
+ // Get dashboard data for admin/manager
+async getDashboardData(token, params = {}) {
+  try {
+    console.log('📊 Fetching dashboard data with params:', params);
+    
+    const queryParams = new URLSearchParams(params).toString();
+    const url = `${API_BASE_URL}/reports/dashboard${queryParams ? `?${queryParams}` : ''}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to fetch dashboard data');
     }
-  },
+    
+    const data = await response.json();
+    console.log('📊 Dashboard data received for period:', params.period || 'today');
+    
+    return data;
+    
+  } catch (error) {
+    console.error('Get dashboard data error:', error);
+    throw error;
+  }
+},
 
   // Get detailed sales report
   async getSalesReport(token, params = {}) {

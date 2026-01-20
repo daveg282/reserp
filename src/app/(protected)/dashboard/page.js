@@ -175,240 +175,128 @@ export default function ManagerDashboard() {
   }, [activeView, timeRange]);
 
   // ========== DASHBOARD DATA ==========
-  const fetchDashboardData = async (period = 'today') => {
-    console.log('📊 Fetching dashboard data for period:', period);
-    
-    const authToken = AuthService.getToken();
-    
-    if (!authToken) {
-      console.error('❌ No auth token found');
-      setError(prev => ({ ...prev, dashboard: 'No authentication token found' }));
-      return;
-    }
+const fetchDashboardData = async (period = 'today') => {
+  console.log('📊 Fetching dashboard data for period:', period);
+  
+  const authToken = AuthService.getToken();
+  
+  if (!authToken) {
+    console.error('❌ No auth token found');
+    setError(prev => ({ ...prev, dashboard: 'No authentication token found' }));
+    return;
+  }
 
-    if (!user || !['admin', 'manager'].includes(user.role)) {
-      console.error('❌ User role not authorized:', user?.role);
-      setError(prev => ({ 
-        ...prev, 
-        dashboard: 'Access Denied: Manager or admin role required.' 
-      }));
-      return;
-    }
+  if (!user || !['admin', 'manager'].includes(user.role)) {
+    console.error('❌ User role not authorized:', user?.role);
+    setError(prev => ({ 
+      ...prev, 
+      dashboard: 'Access Denied: Manager or admin role required.' 
+    }));
+    return;
+  }
+  
+  setLoadingData(prev => ({ ...prev, dashboard: true }));
+  setError(prev => ({ ...prev, dashboard: null }));
+  
+  try {
+    // Pass the period as a query parameter
+    const response = await reportAPI.getDashboardData(authToken, { period });
     
-    setLoadingData(prev => ({ ...prev, dashboard: true }));
-    setError(prev => ({ ...prev, dashboard: null }));
+    console.log('✅ Dashboard data received for', period, ':', response);
     
-    try {
-      const response = await reportAPI.getDashboardData(authToken, { period });
+    if (response.success) {
+      let dashboardData = response.data;
       
-      console.log('✅ Dashboard data received for', period, ':', response);
+      console.log('📋 Dashboard data structure:', dashboardData);
+      console.log('📋 Performance stats for period:', dashboardData?.performance_stats?.[period]);
       
-      if (response.success) {
-        let dashboardData = response.data;
+      if (dashboardData) {
+        // Ensure we have performance stats for the current period
+        const currentPeriodStats = dashboardData.performance_stats?.[period] || {
+          revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+          customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+          averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+          tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+        };
         
-        if (dashboardData) {
-          if (dashboardData.performance_stats) {
-            const stats = dashboardData.performance_stats;
-            
-            const transformedStats = {
-              today: stats.today || {
-                revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-                customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-                averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-                tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-              },
-              week: stats.week || {
-                revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-                customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-                averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-                tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-              },
-              month: stats.month || {
-                revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-                customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-                averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-                tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-              }
-            };
-            
-            dashboardData.performance_stats = transformedStats;
-          } else {
-            dashboardData = {
-              performance_stats: {
-                today: {
-                  revenue: { 
-                    current: dashboardData.today_revenue || 0, 
-                    previous: dashboardData.yesterday_revenue || 0, 
-                    trend: (dashboardData.today_revenue || 0) > (dashboardData.yesterday_revenue || 0) ? 'up' : 'down', 
-                    change: dashboardData.revenue_change || 0
-                  },
-                  customers: { 
-                    current: dashboardData.today_customers || 0, 
-                    previous: dashboardData.yesterday_customers || 0, 
-                    trend: (dashboardData.today_customers || 0) > (dashboardData.yesterday_customers || 0) ? 'up' : 'down', 
-                    change: dashboardData.customers_change || 0
-                  },
-                  averageOrder: { 
-                    current: dashboardData.today_avg_order || 0, 
-                    previous: dashboardData.yesterday_avg_order || 0, 
-                    trend: (dashboardData.today_avg_order || 0) > (dashboardData.yesterday_avg_order || 0) ? 'up' : 'down', 
-                    change: dashboardData.avg_order_change || 0
-                  },
-                  tableTurnover: { 
-                    current: dashboardData.today_table_turnover || 0, 
-                    previous: dashboardData.yesterday_table_turnover || 0, 
-                    trend: (dashboardData.today_table_turnover || 0) > (dashboardData.yesterday_table_turnover || 0) ? 'up' : 'down', 
-                    change: dashboardData.turnover_change || 0
-                  }
-                },
-                week: {
-                  revenue: { 
-                    current: dashboardData.week_revenue || 0, 
-                    previous: dashboardData.last_week_revenue || 0, 
-                    trend: (dashboardData.week_revenue || 0) > (dashboardData.last_week_revenue || 0) ? 'up' : 'down', 
-                    change: dashboardData.week_revenue_change || 0
-                  },
-                  customers: { 
-                    current: dashboardData.week_customers || 0, 
-                    previous: dashboardData.last_week_customers || 0, 
-                    trend: (dashboardData.week_customers || 0) > (dashboardData.last_week_customers || 0) ? 'up' : 'down', 
-                    change: dashboardData.week_customers_change || 0
-                  },
-                  averageOrder: { 
-                    current: dashboardData.week_avg_order || 0, 
-                    previous: dashboardData.last_week_avg_order || 0, 
-                    trend: (dashboardData.week_avg_order || 0) > (dashboardData.last_week_avg_order || 0) ? 'up' : 'down', 
-                    change: dashboardData.week_avg_order_change || 0
-                  },
-                  tableTurnover: { 
-                    current: dashboardData.week_table_turnover || 0, 
-                    previous: dashboardData.last_week_table_turnover || 0, 
-                    trend: (dashboardData.week_table_turnover || 0) > (dashboardData.last_week_table_turnover || 0) ? 'up' : 'down', 
-                    change: dashboardData.week_turnover_change || 0
-                  }
-                },
-                month: {
-                  revenue: { 
-                    current: dashboardData.month_revenue || 0, 
-                    previous: dashboardData.last_month_revenue || 0, 
-                    trend: (dashboardData.month_revenue || 0) > (dashboardData.last_month_revenue || 0) ? 'up' : 'down', 
-                    change: dashboardData.month_revenue_change || 0
-                  },
-                  customers: { 
-                    current: dashboardData.month_customers || 0, 
-                    previous: dashboardData.last_month_customers || 0, 
-                    trend: (dashboardData.month_customers || 0) > (dashboardData.last_month_customers || 0) ? 'up' : 'down', 
-                    change: dashboardData.month_customers_change || 0
-                  },
-                  averageOrder: { 
-                    current: dashboardData.month_avg_order || 0, 
-                    previous: dashboardData.last_month_avg_order || 0, 
-                    trend: (dashboardData.month_avg_order || 0) > (dashboardData.last_month_avg_order || 0) ? 'up' : 'down', 
-                    change: dashboardData.month_avg_order_change || 0
-                  },
-                  tableTurnover: { 
-                    current: dashboardData.month_table_turnover || 0, 
-                    previous: dashboardData.last_month_table_turnover || 0, 
-                    trend: (dashboardData.month_table_turnover || 0) > (dashboardData.last_month_table_turnover || 0) ? 'up' : 'down', 
-                    change: dashboardData.month_turnover_change || 0
-                  }
-                }
-              },
-              staff_performance: dashboardData.staff_performance || [],
-              recent_alerts: dashboardData.recent_alerts || [],
-              popular_items: dashboardData.popular_items || [],
-              quick_stats: dashboardData.quick_stats || [
-                { label: 'Occupancy Rate', value: dashboardData.occupancy_rate || '0%', icon: 'Users', color: 'blue' },
-                { label: 'Food Cost', value: dashboardData.food_cost || '0%', icon: 'PieChart', color: 'emerald' },
-                { label: 'Labor Cost', value: dashboardData.labor_cost || '0%', icon: 'User', color: 'purple' },
-                { label: 'Waste', value: dashboardData.waste_percentage || '0%', icon: 'AlertCircle', color: 'red' }
-              ]
-            };
+        // Create a structure with all periods, but only fill the current one
+        const transformedStats = {
+          today: period === 'today' ? currentPeriodStats : {
+            revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+            customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+            averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+            tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+          },
+          week: period === 'week' ? currentPeriodStats : {
+            revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+            customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+            averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+            tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+          },
+          month: period === 'month' ? currentPeriodStats : {
+            revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+            customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+            averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+            tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
           }
-        } else {
-          dashboardData = {
-            performance_stats: {
-              today: {
-                revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-                customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-                averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-                tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-              },
-              week: {
-                revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-                customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-                averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-                tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-              },
-              month: {
-                revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-                customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-                averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-                tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-              }
-            },
-            staff_performance: [],
-            recent_alerts: [],
-            popular_items: [],
-            quick_stats: [
-              { label: 'Occupancy Rate', value: '0%', icon: 'Users', color: 'blue' },
-              { label: 'Food Cost', value: '0%', icon: 'PieChart', color: 'emerald' },
-              { label: 'Labor Cost', value: '0%', icon: 'User', color: 'purple' },
-              { label: 'Waste', value: '0%', icon: 'AlertCircle', color: 'red' }
-            ]
-          };
-        }
+        };
         
-        setDashboardData(dashboardData);
-      } else {
-        if (response.data) {
-          console.log('⚠️ API returned success: false but has data, trying to use it:', response.data);
-          setDashboardData(response.data);
-        } else {
-          throw new Error(response.error || response.message || 'Failed to load dashboard data');
-        }
+        const finalDashboardData = {
+          performance_stats: transformedStats,
+          staff_performance: dashboardData.staff_performance || [],
+          popular_items: dashboardData.popular_items || [],
+          recent_orders: dashboardData.recent_orders || [],
+          user_role: dashboardData.user_role || user?.role || 'manager',
+          generated_at: dashboardData.generated_at || new Date().toISOString()
+        };
+        
+        console.log('📊 Final dashboard data to set:', finalDashboardData);
+        console.log('📊 Stats for current period', period, ':', transformedStats[period]);
+        
+        setDashboardData(finalDashboardData);
       }
-      
-    } catch (err) {
-      console.error('❌ Error fetching dashboard data:', err);
-      setError(prev => ({ ...prev, dashboard: err.message }));
-      
-      setDashboardData({
-        performance_stats: {
-          today: {
-            revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-            customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-            averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-            tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-          },
-          week: {
-            revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-            customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-            averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-            tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-          },
-          month: {
-            revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-            customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-            averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-            tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-          }
-        },
-        staff_performance: [],
-        recent_alerts: [],
-        popular_items: [],
-        quick_stats: [
-          { label: 'Occupancy Rate', value: '0%', icon: 'Users', color: 'blue' },
-          { label: 'Food Cost', value: '0%', icon: 'PieChart', color: 'emerald' },
-          { label: 'Labor Cost', value: '0%', icon: 'User', color: 'purple' },
-          { label: 'Waste', value: '0%', icon: 'AlertCircle', color: 'red' }
-        ]
-      });
-    } finally {
-      setLoadingData(prev => ({ ...prev, dashboard: false }));
+    } else {
+      throw new Error(response.error || response.message || 'Failed to load dashboard data');
     }
-  };
-
+    
+  } catch (err) {
+    console.error('❌ Error fetching dashboard data:', err);
+    setError(prev => ({ ...prev, dashboard: err.message }));
+    
+    // Set empty data structure
+    const emptyDashboardData = {
+      performance_stats: {
+        today: {
+          revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+          customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+          averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+          tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+        },
+        week: {
+          revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+          customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+          averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+          tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+        },
+        month: {
+          revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+          customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+          averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+          tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+        }
+      },
+      staff_performance: [],
+      popular_items: [],
+      recent_orders: [],
+      user_role: user?.role || 'manager',
+      generated_at: new Date().toISOString()
+    };
+    
+    setDashboardData(emptyDashboardData);
+  } finally {
+    setLoadingData(prev => ({ ...prev, dashboard: false }));
+  }
+};
   // ========== TABLES DATA ==========
   const fetchTablesData = async (filters = {}) => {
     console.log('📊 Fetching tables data...', filters);
@@ -797,53 +685,91 @@ export default function ManagerDashboard() {
   };
 
   // ========== MENU DATA ==========
-  const fetchMenuData = async () => {
-    console.log('📋 Fetching menu data...');
+ // In page.js - Update fetchMenuData to get real stats:
+const fetchMenuData = async () => {
+  const authToken = AuthService.getToken();
+  
+  setLoadingData(prev => ({ ...prev, menu: true }));
+  setError(prev => ({ ...prev, menu: null }));
+  
+  try {
+    // Get menu items and categories
+    const [itemsResponse, categoriesResponse] = await Promise.all([
+      menuAPI.getMenuItems(),
+      menuAPI.getCategories()
+    ]);
     
-    const authToken = AuthService.getToken();
+    const menuItems = itemsResponse.items || itemsResponse || [];
+    const categories = categoriesResponse.categories || categoriesResponse || [];
     
-    if (!authToken) {
-      console.error('❌ No auth token found');
-      setError(prev => ({ ...prev, menu: 'No authentication token found' }));
-      return;
-    }
-
-    if (!user || !['admin', 'manager'].includes(user.role)) {
-      console.error('❌ User role not authorized:', user?.role);
-      setError(prev => ({ 
-        ...prev, 
-        menu: 'Access Denied: Manager or admin role required.' 
-      }));
-      return;
-    }
+    console.log('📊 Categories from API:', categories); // Debug log
     
-    setLoadingData(prev => ({ ...prev, menu: true }));
-    setError(prev => ({ ...prev, menu: null }));
+    // DEBUG: Check what available values we actually have
+    console.log('🔍 Checking menu items availability:');
+    console.log('📊 Total menu items:', menuItems.length);
+    console.log('📊 Sample items (first 3):', menuItems.slice(0, 3).map(item => ({
+      name: item.name,
+      available: item.available,
+      available_type: typeof item.available
+    })));
     
-    try {
-      const [itemsResponse, categoriesResponse, statsResponse] = await Promise.all([
-        menuAPI.getMenuItems(),
-        menuAPI.getCategories(),
-        menuAPI.getMenuStats(authToken)
-      ]);
+    // Count availability types
+    const availabilityCounts = {
+      available_1: menuItems.filter(item => item.available === 1).length,
+      available_true: menuItems.filter(item => item.available === true).length,
+      unavailable_0: menuItems.filter(item => item.available === 0).length,
+      unavailable_false: menuItems.filter(item => item.available === false).length,
+      null_undefined: menuItems.filter(item => 
+        item.available === null || item.available === undefined
+      ).length
+    };
+    console.log('📊 Availability counts:', availabilityCounts);
+    
+    // Calculate basic stats from menu items - FIXED!
+    const menuStats = {
+      total_items: menuItems.length,
+      // FIX: Use the same logic as MenuItemsGrid.js
+      available_items: menuItems.filter(item => item.available === 1).length,
+      // Also fix popular count
+      popular_items: menuItems.filter(item => item.popular === 1).length,
+      // Remove average_price since we removed it from MenuStats
+      total_categories: categories.length,
+      // Remove revenue_share since we removed it from MenuStats
+    };
+    
+    console.log('📊 Calculated menu stats:', menuStats);
+    
+    // IMPORTANT: Preserve ALL category data from API, just add item_count
+    const categoriesWithCounts = categories.map(category => {
+      // Check if category is an object with id property
+      if (!category || typeof category !== 'object') {
+        console.warn('Invalid category data:', category);
+        return { ...category, item_count: 0 };
+      }
       
-      console.log('✅ Menu data received');
-      
-      setMenuData(itemsResponse);
-      setCategories(categoriesResponse);
-      setMenuStats(statsResponse || {});
-      
-    } catch (err) {
-      console.error('❌ Error fetching menu data:', err);
-      setError(prev => ({ ...prev, menu: err.message }));
-      setMenuData([]);
-      setCategories([]);
-      setMenuStats({});
-    } finally {
-      setLoadingData(prev => ({ ...prev, menu: false }));
-    }
-  };
-
+      return {
+        ...category, // Keep ALL original fields: id, name, description, station_id, created_at, etc.
+        item_count: menuItems.filter(item => {
+          // Handle both category_id and category.id
+          const itemCategoryId = item.category_id || item.category?.id;
+          return itemCategoryId === category.id;
+        }).length
+      };
+    });
+    
+    console.log('📊 Categories with counts:', categoriesWithCounts); // Debug log
+    
+    setMenuData(menuItems);
+    setCategories(categoriesWithCounts); // This should have ALL original data + item_count
+    setMenuStats(menuStats);
+    
+  } catch (err) {
+    console.error('❌ Error fetching menu data:', err);
+    setError(prev => ({ ...prev, menu: err.message }));
+  } finally {
+    setLoadingData(prev => ({ ...prev, menu: false }));
+  }
+};
   // ========== TABLE CRUD ACTION HANDLERS ==========
   const handleCreateTable = async (tableData) => {
   console.log('➕ Creating new table - data received:', tableData);
@@ -1765,19 +1691,18 @@ Thank you for your business!
       case 'dashboard':
         return (
           <DashboardView
-            performanceStats={dashboardData?.performance_stats || {}}
-            staffPerformance={dashboardData?.staff_performance || []}
-            recentAlerts={dashboardData?.recent_alerts || []}
-            popularItems={dashboardData?.popular_items || []}
-            quickStats={dashboardData?.quick_stats || []}
-            timeRange={timeRange}
-            setActiveView={setActiveView}
-            setSelectedStaff={handleStaffSelect}
-            setShowStaffDetails={setShowStaffDetails}
-            onRefresh={() => fetchDashboardData(timeRange)}
-            isLoading={loadingData.dashboard}
-            userRole={user.role}
-          />
+  performanceStats={dashboardData?.performance_stats || {}}
+  staffPerformance={dashboardData?.staff_performance || []}
+  popularItems={dashboardData?.popular_items || []}
+  recentOrders={dashboardData?.recent_orders || []}  // This is correct - camelCase in component
+  timeRange={timeRange}
+  setActiveView={setActiveView}
+  setSelectedStaff={handleStaffSelect}
+  setShowStaffDetails={setShowStaffDetails}
+  onRefresh={() => fetchDashboardData(timeRange)}
+  isLoading={loadingData.dashboard}
+  userRole={user.role}
+/>
         );
       
       case 'staff':

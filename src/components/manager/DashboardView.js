@@ -1,19 +1,16 @@
 'use client';
 import { 
   DollarSign, Users, TrendingUp, Clock, Star, 
-  Utensils, PieChart, User, AlertCircle, RefreshCw,
-  TrendingDown
+  Utensils, TrendingDown, Receipt
 } from 'lucide-react';
 import StatsCard from './StatsCard';
-import AlertCard from './AlertCard';
 
 export default function DashboardView({
   performanceStats = {},
   staffPerformance = [],
-  recentAlerts = [],
   popularItems = [],
-  quickStats = [],
-  timeRange = 'today', // Added: gets timeRange from parent
+  recentOrders = [],
+  timeRange = 'today',
   setActiveView,
   setSelectedStaff,
   setShowStaffDetails,
@@ -64,10 +61,15 @@ export default function DashboardView({
     );
   };
 
+  // Format currency with commas
+  const formatCurrency = (amount) => {
+    return `ETB ${parseFloat(amount || 0).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  };
+
   const stats = [
     { 
       label: 'Total Revenue', 
-      value: `ETB ${(periodStats.revenue?.current || 0).toLocaleString()}`,
+      value: formatCurrency(periodStats.revenue?.current || 0),
       change: getChangeDisplay(periodStats.revenue?.change, periodStats.revenue?.trend),
       icon: DollarSign,
       color: 'emerald'
@@ -81,7 +83,7 @@ export default function DashboardView({
     },
     { 
       label: 'Avg Order Value', 
-      value: `ETB ${periodStats.averageOrder?.current || 0}`,
+      value: formatCurrency(periodStats.averageOrder?.current || 0),
       change: getChangeDisplay(periodStats.averageOrder?.change, periodStats.averageOrder?.trend),
       icon: TrendingUp,
       color: 'purple'
@@ -95,14 +97,28 @@ export default function DashboardView({
     }
   ];
 
-  const defaultQuickStats = [
-    { label: 'Occupancy Rate', value: '78%', icon: Users, color: 'blue' },
-    { label: 'Food Cost', value: '28.3%', icon: PieChart, color: 'emerald' },
-    { label: 'Labor Cost', value: '22.1%', icon: User, color: 'purple' },
-    { label: 'Waste', value: '4.2%', icon: AlertCircle, color: 'red' }
-  ];
-
-  const displayQuickStats = quickStats.length > 0 ? quickStats : defaultQuickStats;
+  // Format time for display
+  const formatTime = (dateString) => {
+    if (!dateString) return 'Just now';
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return 'Recently';
+    }
+  };
 
   // Loading state
   if (isLoading) {
@@ -115,6 +131,33 @@ export default function DashboardView({
       </div>
     );
   }
+
+  // Calculate staff rating properly
+  const calculateStaffRating = (staff) => {
+    if (!staff.orders_handled || staff.orders_handled === 0) return '0.0';
+    
+    let rating = 3.5; // Base rating
+    
+    // Adjust based on sales
+    if (staff.total_sales > 10000) rating += 1.5;
+    else if (staff.total_sales > 5000) rating += 1.0;
+    else if (staff.total_sales > 1000) rating += 0.5;
+    
+    // Adjust based on orders handled
+    if (staff.orders_handled > 50) rating += 0.5;
+    else if (staff.orders_handled > 20) rating += 0.3;
+    else if (staff.orders_handled > 10) rating += 0.2;
+    
+    // Adjust based on average order value
+    if (staff.avg_order_value > 500) rating += 0.5;
+    else if (staff.avg_order_value > 250) rating += 0.3;
+    
+    // Cap at 5.0
+    return Math.min(5.0, rating).toFixed(1);
+  };
+
+  // Filter active staff (with sales > 0)
+  const activeStaff = staffPerformance?.filter(staff => (staff.total_sales || 0) > 0) || [];
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -143,48 +186,46 @@ export default function DashboardView({
             </button>
           </div>
           <div className="space-y-3 lg:space-y-4">
-            {staffPerformance
-              .filter(staff => (staff.total_sales || 0) > 0)
-              .slice(0, 4)
-              .map(staff => (
-              <div 
-                key={staff.id} 
-                className="flex items-center justify-between p-3 lg:p-4 bg-gray-50 rounded-xl border hover:bg-gray-100 transition cursor-pointer"
-                onClick={() => {
-                  setSelectedStaff(staff);
-                  setShowStaffDetails(true);
-                }}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center font-bold text-white text-sm">
-                    {staff.avatar || (staff.name ? staff.name.charAt(0).toUpperCase() : 'U')}
+            {activeStaff.length > 0 ? (
+              activeStaff
+                .slice(0, 4)
+                .map(staff => (
+                  <div 
+                    key={staff.id} 
+                    className="flex items-center justify-between p-3 lg:p-4 bg-gray-50 rounded-xl border hover:bg-gray-100 transition cursor-pointer"
+                    onClick={() => {
+                      setSelectedStaff(staff);
+                      setShowStaffDetails(true);
+                    }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center font-bold text-white text-sm">
+                        {staff.avatar || (staff.name ? staff.name.charAt(0).toUpperCase() : 'U')}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm lg:text-base">{staff.name || 'Staff'}</p>
+                        <p className="text-xs text-gray-500 capitalize">{staff.role || 'staff'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <p className="font-bold text-gray-900 text-sm lg:text-base">
+                          {formatCurrency(staff.total_sales)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {staff.orders_handled || 0} orders · {staff.tables_served || 0} tables
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Star className="w-4 h-4 text-amber-400" fill="currentColor" />
+                        <span className="font-semibold text-gray-900 text-sm">
+                          {calculateStaffRating(staff)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm lg:text-base">{staff.name || 'Staff'}</p>
-                    <p className="text-xs text-gray-500">{staff.role || 'staff'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900 text-sm lg:text-base">
-                      ETB {(staff.total_sales || 0).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {staff.orders_handled || 0} orders · {staff.tables_served || 0} tables
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Star className="w-4 h-4 text-amber-400" fill="currentColor" />
-                    <span className="font-semibold text-gray-900 text-sm">
-                      {/* Calculate rating based on performance */}
-                      {staff.orders_handled > 0 ? 
-                        Math.min(5.0, 3.5 + (staff.total_sales / 10000)).toFixed(1) : '0.0'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {staffPerformance.filter(staff => (staff.total_sales || 0) > 0).length === 0 && (
+                ))
+            ) : (
               <div className="text-center py-4">
                 <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                 <p className="text-gray-500 text-sm">No staff activity this {timeRange}</p>
@@ -193,57 +234,45 @@ export default function DashboardView({
           </div>
         </div>
 
-        {/* Recent Alerts */}
-        <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
-          <div className="flex justify-between items-center mb-4 lg:mb-6">
-            <h3 className="text-base lg:text-lg font-bold text-gray-900">Recent Alerts</h3>
-            <span className={`bg-${recentAlerts.length > 0 ? 'red' : 'green'}-500 text-white text-xs px-2 py-1 rounded-full`}>
-              {recentAlerts.length} {recentAlerts.length === 1 ? 'alert' : 'alerts'}
-            </span>
-          </div>
-          <div className="space-y-3">
-            {recentAlerts.map(alert => (
-              <AlertCard key={alert.id} alert={alert} />
-            ))}
-            {recentAlerts.length === 0 && (
-              <div className="text-center py-4">
-                <AlertCircle className="w-8 h-8 text-green-300 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">No alerts</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* Popular Items */}
         <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
-          <h3 className="text-base lg:text-lg font-bold text-gray-900 mb-4 lg:mb-6">
-            Popular Items ({timeRange === 'today' ? 'Today' : timeRange === 'week' ? 'This Week' : 'This Month'})
-          </h3>
+          <div className="flex justify-between items-center mb-4 lg:mb-6">
+            <h3 className="text-base lg:text-lg font-bold text-gray-900">
+              Popular Items ({timeRange === 'today' ? 'Today' : timeRange === 'week' ? 'This Week' : 'This Month'})
+            </h3>
+            <button 
+              onClick={() => setActiveView('menu')}
+              className="text-purple-600 hover:text-purple-700 text-xs lg:text-sm font-medium"
+            >
+              View All
+            </button>
+          </div>
           <div className="space-y-3">
-            {popularItems.map((item, index) => (
-              <div key={item.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center">
-                    <Utensils className="w-4 h-4 text-orange-600" />
+            {popularItems && popularItems.length > 0 ? (
+              popularItems.slice(0, 5).map((item, index) => (
+                <div key={item.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center shrink-0">
+                      <Utensils className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">{item.name || 'Menu Item'}</p>
+                      <p className="text-xs text-gray-500 truncate">{item.category || 'General'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm lg:text-base">{item.name || 'Menu Item'}</p>
-                    <p className="text-xs text-gray-500">{item.category || 'General'}</p>
+                  <div className="text-right ml-3">
+                    <p className="font-bold text-gray-900 text-sm lg:text-base whitespace-nowrap">
+                      {formatCurrency(item.total_revenue)}
+                    </p>
+                    <div className="flex items-center justify-end space-x-1">
+                      <span className="text-xs text-gray-500 whitespace-nowrap">
+                        {item.order_count || 0} orders
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-gray-900 text-sm lg:text-base">
-                    ETB {(item.total_revenue || 0).toLocaleString()}
-                  </p>
-                  <div className="flex items-center justify-end space-x-1">
-                    <span className="text-xs text-gray-500">{item.order_count || 0} orders</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {popularItems.length === 0 && (
+              ))
+            ) : (
               <div className="text-center py-4">
                 <Utensils className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                 <p className="text-gray-500 text-sm">No popular items data</p>
@@ -251,69 +280,79 @@ export default function DashboardView({
             )}
           </div>
         </div>
-
-        {/* Quick Stats */}
-        <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
-          <h3 className="text-base lg:text-lg font-bold text-gray-900 mb-4 lg:mb-6">Quick Stats</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {displayQuickStats.map((stat, i) => {
-              const statValue = typeof stat === 'object' ? stat.value : stat;
-              const statLabel = typeof stat === 'object' ? stat.label : '';
-              const statIcon = typeof stat === 'object' ? stat.icon : null;
-              const statColor = typeof stat === 'object' ? stat.color : 'gray';
-
-              return (
-                <div key={i} className="text-center p-4 bg-gray-50 rounded-xl">
-                  <div className={`w-10 h-10 ${getBgColor(statColor)} rounded-lg flex items-center justify-center mx-auto mb-2`}>
-                    {statIcon ? (
-                      <stat.icon className={`w-5 h-5 ${getTextColor(statColor)}`} />
-                    ) : (
-                      i === 0 && <Users className={`w-5 h-5 ${getTextColor(statColor)}`} />
-                    )}
-                  </div>
-                  <p className="text-lg lg:text-xl font-bold text-gray-900">{statValue}</p>
-                  <p className="text-xs text-gray-600">{statLabel}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
-      {/* Refresh button at bottom */}
-      <div className="flex justify-center">
-        <button
-          onClick={onRefresh}
-          disabled={isLoading}
-          className={`flex items-center gap-2 px-4 py-2 ${isLoading ? 'text-gray-400' : 'text-gray-600 hover:text-gray-900'} transition`}
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          <span className="text-sm">{isLoading ? 'Refreshing...' : 'Refresh Data'}</span>
-        </button>
+      {/* Recent Orders */}
+      <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
+        <div className="flex justify-between items-center mb-4 lg:mb-6">
+          <h3 className="text-base lg:text-lg font-bold text-gray-900">Recent Orders</h3>
+          <button 
+            onClick={() => setActiveView('orders-service')}
+            className="text-purple-600 hover:text-purple-700 text-xs lg:text-sm font-medium"
+          >
+            View All
+          </button>
+        </div>
+        <div className="space-y-3">
+          {recentOrders && recentOrders.length > 0 ? (
+            recentOrders.map((order, index) => (
+              <div 
+                key={order.id || index} 
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border hover:bg-gray-100 transition cursor-pointer"
+                onClick={() => {
+                  // You can add order details modal here if needed
+                  console.log('Order clicked:', order);
+                }}
+              >
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center shrink-0">
+                    <Receipt className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
+                      {order.order_number || `Order #${order.id}`}
+                    </p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                        order.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
+                        order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        order.status === 'preparing' ? 'bg-yellow-100 text-yellow-800' :
+                        order.status === 'pending' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {order.payment_status === 'paid' ? 'Paid' : 
+                         order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Pending'}
+                      </span>
+                      <span className="text-xs text-gray-500 truncate">
+                        {order.customer_name || 'Walk-in'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right ml-3">
+                  <p className="font-bold text-gray-900 text-sm lg:text-base whitespace-nowrap">
+                    {formatCurrency(order.total_amount)}
+                  </p>
+                  <div className="flex items-center justify-end space-x-1">
+                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                      {order.table_number ? `Table ${order.table_number}` : 'Takeaway'}
+                    </span>
+                    <span className="text-xs text-gray-500">·</span>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                      {formatTime(order.order_time)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-4">
+              <Receipt className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">No recent orders</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
-
-// Helper functions for dynamic Tailwind classes
-const getBgColor = (color) => {
-  switch(color) {
-    case 'blue': return 'bg-blue-100';
-    case 'emerald': return 'bg-emerald-100';
-    case 'purple': return 'bg-purple-100';
-    case 'red': return 'bg-red-100';
-    case 'orange': return 'bg-orange-100';
-    default: return 'bg-gray-100';
-  }
-};
-
-const getTextColor = (color) => {
-  switch(color) {
-    case 'blue': return 'text-blue-600';
-    case 'emerald': return 'text-emerald-600';
-    case 'purple': return 'text-purple-600';
-    case 'red': return 'text-red-600';
-    case 'orange': return 'text-orange-600';
-    default: return 'text-gray-600';
-  }
-};

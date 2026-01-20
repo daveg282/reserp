@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Tag, Palette, Hash } from 'lucide-react';
+import { X, Tag } from 'lucide-react';
 
 export default function CategoryModal({
   isOpen,
@@ -11,9 +11,7 @@ export default function CategoryModal({
 }) {
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
-    color: '#6B7280', // Default gray
-    display_order: ''
+    description: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -23,16 +21,12 @@ export default function CategoryModal({
     if (initialData) {
       setFormData({
         name: initialData.name || '',
-        description: initialData.description || '',
-        color: initialData.color || '#6B7280',
-        display_order: initialData.display_order || ''
+        description: initialData.description || ''
       });
     } else {
       setFormData({
         name: '',
-        description: '',
-        color: '#6B7280',
-        display_order: ''
+        description: ''
       });
     }
   }, [initialData, isOpen]);
@@ -40,9 +34,8 @@ export default function CategoryModal({
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.name.trim()) newErrors.name = 'Category name is required';
-    if (!formData.display_order || parseInt(formData.display_order) < 0) {
-      newErrors.display_order = 'Valid display order is required';
+    if (!formData.name.trim()) {
+      newErrors.name = 'Category name is required';
     }
     
     setErrors(newErrors);
@@ -57,10 +50,7 @@ export default function CategoryModal({
     setIsSubmitting(true);
     
     try {
-      const dataToSubmit = {
-        ...formData,
-        display_order: parseInt(formData.display_order)
-      };
+      const dataToSubmit = { ...formData };
       
       if (initialData) {
         await onSubmit(initialData.id, dataToSubmit);
@@ -75,18 +65,6 @@ export default function CategoryModal({
       setIsSubmitting(false);
     }
   };
-
-  // Color options
-  const colorOptions = [
-    { name: 'Gray', value: '#6B7280' },
-    { name: 'Red', value: '#EF4444' },
-    { name: 'Orange', value: '#F97316' },
-    { name: 'Yellow', value: '#EAB308' },
-    { name: 'Green', value: '#10B981' },
-    { name: 'Blue', value: '#3B82F6' },
-    { name: 'Purple', value: '#8B5CF6' },
-    { name: 'Pink', value: '#EC4899' }
-  ];
 
   if (!isOpen) return null;
 
@@ -120,7 +98,7 @@ export default function CategoryModal({
           )}
 
           {/* Category Name */}
-          <div>
+          <div className='text-black'>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Category Name *
             </label>
@@ -131,7 +109,7 @@ export default function CategoryModal({
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                 className={`w-full pl-10 pr-4 py-2 border ${errors.name ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                placeholder="e.g., Appetizers, Main Course"
+                placeholder="e.g., Appetizers, Main Course, Desserts"
               />
             </div>
             {errors.name && (
@@ -140,7 +118,7 @@ export default function CategoryModal({
           </div>
 
           {/* Description */}
-          <div>
+          <div className='text-black'>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Description
             </label>
@@ -151,58 +129,9 @@ export default function CategoryModal({
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               placeholder="Describe this category..."
             />
-          </div>
-
-          {/* Display Order */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Display Order *
-            </label>
-            <div className="relative">
-              <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="number"
-                min="0"
-                value={formData.display_order}
-                onChange={(e) => setFormData({...formData, display_order: e.target.value})}
-                className={`w-full pl-10 pr-4 py-2 border ${errors.display_order ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                placeholder="e.g., 1 (first), 2 (second)..."
-              />
-            </div>
-            {errors.display_order && (
-              <p className="mt-1 text-sm text-red-600">{errors.display_order}</p>
-            )}
-          </div>
-
-          {/* Color Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Category Color
-            </label>
-            <div className="flex flex-wrap gap-3">
-              {colorOptions.map((color) => (
-                <button
-                  key={color.value}
-                  type="button"
-                  onClick={() => setFormData({...formData, color: color.value})}
-                  className={`w-8 h-8 rounded-full border-2 ${formData.color === color.value ? 'border-gray-800' : 'border-transparent'}`}
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                />
-              ))}
-              <div className="flex items-center">
-                <div 
-                  className="w-8 h-8 rounded-full mr-2 border"
-                  style={{ backgroundColor: formData.color }}
-                />
-                <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData({...formData, color: e.target.value})}
-                  className="w-12 h-8 cursor-pointer"
-                />
-              </div>
-            </div>
+            <p className="mt-1 text-sm text-gray-500">
+              Optional: Add a description to help organize your menu items
+            </p>
           </div>
 
           {/* Footer */}
@@ -218,7 +147,7 @@ export default function CategoryModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+              className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>

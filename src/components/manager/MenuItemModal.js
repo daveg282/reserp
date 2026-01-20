@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Image as ImageIcon, DollarSign, Tag, FileText } from 'lucide-react';
+import { X, DollarSign, Tag } from 'lucide-react';
 
 export default function MenuItemModal({
   isOpen,
@@ -15,12 +15,9 @@ export default function MenuItemModal({
     description: '',
     price: '',
     category_id: '',
-    ingredients: '',
-    preparation_time: '',
-    is_vegetarian: false,
-    is_vegan: false,
-    is_gluten_free: false,
-    is_spicy: false
+    preparation_time: '15',
+    available: true,
+    popular: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -33,12 +30,9 @@ export default function MenuItemModal({
         description: initialData.description || '',
         price: initialData.price || '',
         category_id: initialData.category_id || initialData.category?.id || '',
-        ingredients: initialData.ingredients || '',
-        preparation_time: initialData.preparation_time || '',
-        is_vegetarian: initialData.is_vegetarian || false,
-        is_vegan: initialData.is_vegan || false,
-        is_gluten_free: initialData.is_gluten_free || false,
-        is_spicy: initialData.is_spicy || false
+        preparation_time: initialData.preparation_time || '15',
+        available: initialData.available !== false,
+        popular: initialData.popular || false
       });
     } else {
       // Reset form for new item
@@ -47,12 +41,9 @@ export default function MenuItemModal({
         description: '',
         price: '',
         category_id: '',
-        ingredients: '',
-        preparation_time: '',
-        is_vegetarian: false,
-        is_vegan: false,
-        is_gluten_free: false,
-        is_spicy: false
+        preparation_time: '15',
+        available: true,
+        popular: false
       });
     }
   }, [initialData, isOpen]);
@@ -64,7 +55,6 @@ export default function MenuItemModal({
     if (!formData.price || parseFloat(formData.price) <= 0) newErrors.price = 'Valid price is required';
     if (!formData.category_id) newErrors.category_id = 'Category is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
-    if (!formData.ingredients.trim()) newErrors.ingredients = 'Ingredients are required';
     if (!formData.preparation_time || parseInt(formData.preparation_time) <= 0) {
       newErrors.preparation_time = 'Valid preparation time is required';
     }
@@ -105,7 +95,7 @@ export default function MenuItemModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
@@ -125,16 +115,16 @@ export default function MenuItemModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6">
           {errors.submit && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <p className="text-red-700">{errors.submit}</p>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div className="space-y-6">
+          <div className="space-y-6 text-black">
+            {/* Name and Price in one row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -173,7 +163,10 @@ export default function MenuItemModal({
                   <p className="mt-1 text-sm text-red-600">{errors.price}</p>
                 )}
               </div>
+            </div>
 
+            {/* Category and Prep Time in one row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Category */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -213,109 +206,54 @@ export default function MenuItemModal({
                   <p className="mt-1 text-sm text-red-600">{errors.preparation_time}</p>
                 )}
               </div>
-
-              {/* Dietary Tags */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Dietary Tags
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_vegetarian}
-                      onChange={(e) => setFormData({...formData, is_vegetarian: e.target.checked})}
-                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                    />
-                    <span className="text-sm text-gray-700">Vegetarian</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_vegan}
-                      onChange={(e) => setFormData({...formData, is_vegan: e.target.checked})}
-                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                    />
-                    <span className="text-sm text-gray-700">Vegan</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_gluten_free}
-                      onChange={(e) => setFormData({...formData, is_gluten_free: e.target.checked})}
-                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                    />
-                    <span className="text-sm text-gray-700">Gluten Free</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_spicy}
-                      onChange={(e) => setFormData({...formData, is_spicy: e.target.checked})}
-                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                    />
-                    <span className="text-sm text-gray-700">Spicy</span>
-                  </label>
-                </div>
-              </div>
             </div>
 
-            {/* Right Column */}
-            <div className="space-y-6">
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description *
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  rows="3"
-                  className={`w-full px-4 py-2 border ${errors.description ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                  placeholder="Describe the menu item..."
-                />
-                {errors.description && (
-                  <p className="mt-1 text-sm text-red-600">{errors.description}</p>
-                )}
-              </div>
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                rows="3"
+                className={`w-full px-4 py-2 border ${errors.description ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+                placeholder="Describe the menu item..."
+              />
+              {errors.description && (
+                <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+              )}
+            </div>
 
-              {/* Ingredients */}
+            {/* Availability & Popular Toggles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ingredients *
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.available}
+                    onChange={(e) => setFormData({...formData, available: e.target.checked})}
+                    className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">Available for ordering</span>
                 </label>
-                <textarea
-                  value={formData.ingredients}
-                  onChange={(e) => setFormData({...formData, ingredients: e.target.value})}
-                  rows="4"
-                  className={`w-full px-4 py-2 border ${errors.ingredients ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-                  placeholder="List ingredients separated by commas..."
-                />
-                {errors.ingredients && (
-                  <p className="mt-1 text-sm text-red-600">{errors.ingredients}</p>
-                )}
               </div>
-
-              {/* Image Upload (Placeholder) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Item Image
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.popular}
+                    onChange={(e) => setFormData({...formData, popular: e.target.checked})}
+                    className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">Mark as popular item</span>
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm mb-2">
-                    Drag & drop an image or click to browse
-                  </p>
-                  <p className="text-gray-400 text-xs">
-                    Recommended: 800x600px, max 5MB
-                  </p>
-                </div>
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
             <button
               type="button"
               onClick={onClose}
