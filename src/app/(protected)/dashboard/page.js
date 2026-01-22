@@ -51,6 +51,18 @@ export default function ManagerDashboard() {
   const [selectedTable, setSelectedTable] = useState(null);
   const [tableModalMode, setTableModalMode] = useState('create'); // 'create' or 'edit'
   
+  // Pagination states for orders
+  const [ordersCurrentPage, setOrdersCurrentPage] = useState(1);
+  const [ordersTotalPages, setOrdersTotalPages] = useState(1);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [ordersPageSize] = useState(20);
+  const [ordersSearchQuery, setOrdersSearchQuery] = useState('');
+  const [ordersFilters, setOrdersFilters] = useState({
+    status: 'all',
+    paymentMethod: 'all',
+    dateRange: 'all'
+  });
+  
   // Data states
   const [dashboardData, setDashboardData] = useState(null);
   const [staffPerformance, setStaffPerformance] = useState([]);
@@ -137,7 +149,7 @@ export default function ManagerDashboard() {
               break;
             case 'orders-service':
               if (ordersData.length === 0) {
-                await fetchOrdersData();
+                await fetchOrdersData(1, '', ordersFilters);
               }
               break;
             case 'kitchen-operations':
@@ -175,128 +187,129 @@ export default function ManagerDashboard() {
   }, [activeView, timeRange]);
 
   // ========== DASHBOARD DATA ==========
-const fetchDashboardData = async (period = 'today') => {
-  console.log('📊 Fetching dashboard data for period:', period);
-  
-  const authToken = AuthService.getToken();
-  
-  if (!authToken) {
-    console.error('❌ No auth token found');
-    setError(prev => ({ ...prev, dashboard: 'No authentication token found' }));
-    return;
-  }
+  const fetchDashboardData = async (period = 'today') => {
+    console.log('📊 Fetching dashboard data for period:', period);
+    
+    const authToken = AuthService.getToken();
+    
+    if (!authToken) {
+      console.error('❌ No auth token found');
+      setError(prev => ({ ...prev, dashboard: 'No authentication token found' }));
+      return;
+    }
 
-  if (!user || !['admin', 'manager'].includes(user.role)) {
-    console.error('❌ User role not authorized:', user?.role);
-    setError(prev => ({ 
-      ...prev, 
-      dashboard: 'Access Denied: Manager or admin role required.' 
-    }));
-    return;
-  }
-  
-  setLoadingData(prev => ({ ...prev, dashboard: true }));
-  setError(prev => ({ ...prev, dashboard: null }));
-  
-  try {
-    // Pass the period as a query parameter
-    const response = await reportAPI.getDashboardData(authToken, { period });
+    if (!user || !['admin', 'manager'].includes(user.role)) {
+      console.error('❌ User role not authorized:', user?.role);
+      setError(prev => ({ 
+        ...prev, 
+        dashboard: 'Access Denied: Manager or admin role required.' 
+      }));
+      return;
+    }
     
-    console.log('✅ Dashboard data received for', period, ':', response);
+    setLoadingData(prev => ({ ...prev, dashboard: true }));
+    setError(prev => ({ ...prev, dashboard: null }));
     
-    if (response.success) {
-      let dashboardData = response.data;
+    try {
+      // Pass the period as a query parameter
+      const response = await reportAPI.getDashboardData(authToken, { period });
       
-      console.log('📋 Dashboard data structure:', dashboardData);
-      console.log('📋 Performance stats for period:', dashboardData?.performance_stats?.[period]);
+      console.log('✅ Dashboard data received for', period, ':', response);
       
-      if (dashboardData) {
-        // Ensure we have performance stats for the current period
-        const currentPeriodStats = dashboardData.performance_stats?.[period] || {
-          revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-          customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-          averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-          tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-        };
+      if (response.success) {
+        let dashboardData = response.data;
         
-        // Create a structure with all periods, but only fill the current one
-        const transformedStats = {
-          today: period === 'today' ? currentPeriodStats : {
+        console.log('📋 Dashboard data structure:', dashboardData);
+        console.log('📋 Performance stats for period:', dashboardData?.performance_stats?.[period]);
+        
+        if (dashboardData) {
+          // Ensure we have performance stats for the current period
+          const currentPeriodStats = dashboardData.performance_stats?.[period] || {
+            revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+            customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+            averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+            tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+          };
+          
+          // Create a structure with all periods, but only fill the current one
+          const transformedStats = {
+            today: period === 'today' ? currentPeriodStats : {
+              revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+              customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+              averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+              tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+            },
+            week: period === 'week' ? currentPeriodStats : {
+              revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+              customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+              averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+              tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+            },
+            month: period === 'month' ? currentPeriodStats : {
+              revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
+              customers: { current: 0, previous: 0, trend: 'up', change: 0 },
+              averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
+              tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
+            }
+          };
+          
+          const finalDashboardData = {
+            performance_stats: transformedStats,
+            staff_performance: dashboardData.staff_performance || [],
+            popular_items: dashboardData.popular_items || [],
+            recent_orders: dashboardData.recent_orders || [],
+            user_role: dashboardData.user_role || user?.role || 'manager',
+            generated_at: dashboardData.generated_at || new Date().toISOString()
+          };
+          
+          console.log('📊 Final dashboard data to set:', finalDashboardData);
+          console.log('📊 Stats for current period', period, ':', transformedStats[period]);
+          
+          setDashboardData(finalDashboardData);
+        }
+      } else {
+        throw new Error(response.error || response.message || 'Failed to load dashboard data');
+      }
+      
+    } catch (err) {
+      console.error('❌ Error fetching dashboard data:', err);
+      setError(prev => ({ ...prev, dashboard: err.message }));
+      
+      // Set empty data structure
+      const emptyDashboardData = {
+        performance_stats: {
+          today: {
             revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
             customers: { current: 0, previous: 0, trend: 'up', change: 0 },
             averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
             tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
           },
-          week: period === 'week' ? currentPeriodStats : {
+          week: {
             revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
             customers: { current: 0, previous: 0, trend: 'up', change: 0 },
             averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
             tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
           },
-          month: period === 'month' ? currentPeriodStats : {
+          month: {
             revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
             customers: { current: 0, previous: 0, trend: 'up', change: 0 },
             averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
             tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
           }
-        };
-        
-        const finalDashboardData = {
-          performance_stats: transformedStats,
-          staff_performance: dashboardData.staff_performance || [],
-          popular_items: dashboardData.popular_items || [],
-          recent_orders: dashboardData.recent_orders || [],
-          user_role: dashboardData.user_role || user?.role || 'manager',
-          generated_at: dashboardData.generated_at || new Date().toISOString()
-        };
-        
-        console.log('📊 Final dashboard data to set:', finalDashboardData);
-        console.log('📊 Stats for current period', period, ':', transformedStats[period]);
-        
-        setDashboardData(finalDashboardData);
-      }
-    } else {
-      throw new Error(response.error || response.message || 'Failed to load dashboard data');
+        },
+        staff_performance: [],
+        popular_items: [],
+        recent_orders: [],
+        user_role: user?.role || 'manager',
+        generated_at: new Date().toISOString()
+      };
+      
+      setDashboardData(emptyDashboardData);
+    } finally {
+      setLoadingData(prev => ({ ...prev, dashboard: false }));
     }
-    
-  } catch (err) {
-    console.error('❌ Error fetching dashboard data:', err);
-    setError(prev => ({ ...prev, dashboard: err.message }));
-    
-    // Set empty data structure
-    const emptyDashboardData = {
-      performance_stats: {
-        today: {
-          revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-          customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-          averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-          tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-        },
-        week: {
-          revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-          customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-          averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-          tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-        },
-        month: {
-          revenue: { current: 0, previous: 0, trend: 'up', change: 0 },
-          customers: { current: 0, previous: 0, trend: 'up', change: 0 },
-          averageOrder: { current: 0, previous: 0, trend: 'up', change: 0 },
-          tableTurnover: { current: 0, previous: 0, trend: 'up', change: 0 }
-        }
-      },
-      staff_performance: [],
-      popular_items: [],
-      recent_orders: [],
-      user_role: user?.role || 'manager',
-      generated_at: new Date().toISOString()
-    };
-    
-    setDashboardData(emptyDashboardData);
-  } finally {
-    setLoadingData(prev => ({ ...prev, dashboard: false }));
-  }
-};
+  };
+
   // ========== TABLES DATA ==========
   const fetchTablesData = async (filters = {}) => {
     console.log('📊 Fetching tables data...', filters);
@@ -342,9 +355,9 @@ const fetchDashboardData = async (period = 'today') => {
     }
   };
 
-  // ========== ORDERS DATA ==========
-  const fetchOrdersData = async () => {
-    console.log('📊 Fetching orders data...');
+  // ========== ORDERS DATA (UPDATED) ==========
+  const fetchOrdersData = async (page = 1, search = '', filters = {}) => {
+    console.log('📊 Fetching orders data...', { page, search, filters });
     
     const authToken = AuthService.getToken();
     if (!authToken) {
@@ -356,22 +369,67 @@ const fetchDashboardData = async (period = 'today') => {
     setError(prev => ({ ...prev, orders: null }));
     
     try {
-      const ordersData = await ordersAPI.getAllOrders(authToken);
-      console.log('✅ Orders data received:', ordersData);
+      // Build query params for pagination and filtering
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: ordersPageSize.toString(),
+        ...(search && { search }),
+        ...(filters.status && filters.status !== 'all' && { status: filters.status }),
+        ...(filters.paymentMethod && filters.paymentMethod !== 'all' && { payment_method: filters.paymentMethod }),
+        ...(filters.dateRange && filters.dateRange !== 'all' && { date_range: filters.dateRange }),
+      }).toString();
+      
+      // Fetch paginated and filtered orders
+      const ordersResponse = await ordersAPI.getOrdersByPage(authToken, page, ordersPageSize, {
+        search,
+        status: filters.status !== 'all' ? filters.status : undefined,
+        payment_method: filters.paymentMethod !== 'all' ? filters.paymentMethod : undefined,
+        date_range: filters.dateRange !== 'all' ? filters.dateRange : undefined,
+      });
+      
+      console.log('✅ Orders data received:', ordersResponse);
+      
+      // Handle different response structures
+      let ordersData = [];
+      let total = 0;
+      
+      if (ordersResponse.orders) {
+        // Response has pagination data
+        ordersData = ordersResponse.orders;
+        total = ordersResponse.total || ordersResponse.count || ordersData.length;
+      } else if (Array.isArray(ordersResponse)) {
+        // Response is an array
+        ordersData = ordersResponse;
+        total = ordersResponse.length;
+      } else if (ordersResponse.success && ordersResponse.data) {
+        // Response has success flag and data
+        ordersData = ordersResponse.data.orders || ordersResponse.data;
+        total = ordersResponse.data.total || ordersData.length;
+      } else {
+        // Fallback: use getAllOrders
+        console.log('⚠️ Using getAllOrders as fallback');
+        const allOrders = await ordersAPI.getAllOrders(authToken);
+        ordersData = allOrders;
+        total = allOrders.length;
+      }
       
       setOrdersData(ordersData);
+      setOrdersTotal(total);
+      setOrdersTotalPages(Math.ceil(total / ordersPageSize));
+      setOrdersCurrentPage(page);
       
+      // Calculate stats from current page data
       const today = new Date().toISOString().split('T')[0];
       const todayOrders = ordersData.filter(order => 
         order.created_at && order.created_at.startsWith(today)
       );
       
-      const totalRevenue = todayOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+      const totalRevenue = ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0);
       
       const stats = {
         today: {
           total: todayOrders.length,
-          revenue: totalRevenue,
+          revenue: todayOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0),
           averageTime: calculateAverageOrderTime(todayOrders),
           pending: todayOrders.filter(o => o.status === 'pending').length,
           preparing: todayOrders.filter(o => o.status === 'preparing' || o.status === 'preparation').length,
@@ -381,9 +439,9 @@ const fetchDashboardData = async (period = 'today') => {
         },
         allTime: {
           total: ordersData.length,
-          totalRevenue: ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0),
+          totalRevenue: totalRevenue,
           averageOrderValue: ordersData.length > 0 ? 
-            ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0) / ordersData.length : 0
+            totalRevenue / ordersData.length : 0
         }
       };
       
@@ -393,6 +451,7 @@ const fetchDashboardData = async (period = 'today') => {
       console.error('❌ Error fetching orders data:', err);
       setError(prev => ({ ...prev, orders: err.message || 'Failed to load orders data' }));
       setOrdersData([]);
+      setOrdersTotal(0);
       setOrderStats({
         today: {
           total: 0,
@@ -685,149 +744,150 @@ const fetchDashboardData = async (period = 'today') => {
   };
 
   // ========== MENU DATA ==========
- // In page.js - Update fetchMenuData to get real stats:
-const fetchMenuData = async () => {
-  const authToken = AuthService.getToken();
-  
-  setLoadingData(prev => ({ ...prev, menu: true }));
-  setError(prev => ({ ...prev, menu: null }));
-  
-  try {
-    // Get menu items and categories
-    const [itemsResponse, categoriesResponse] = await Promise.all([
-      menuAPI.getMenuItems(),
-      menuAPI.getCategories()
-    ]);
+  const fetchMenuData = async () => {
+    const authToken = AuthService.getToken();
     
-    const menuItems = itemsResponse.items || itemsResponse || [];
-    const categories = categoriesResponse.categories || categoriesResponse || [];
+    setLoadingData(prev => ({ ...prev, menu: true }));
+    setError(prev => ({ ...prev, menu: null }));
     
-    console.log('📊 Categories from API:', categories); // Debug log
-    
-    // DEBUG: Check what available values we actually have
-    console.log('🔍 Checking menu items availability:');
-    console.log('📊 Total menu items:', menuItems.length);
-    console.log('📊 Sample items (first 3):', menuItems.slice(0, 3).map(item => ({
-      name: item.name,
-      available: item.available,
-      available_type: typeof item.available
-    })));
-    
-    // Count availability types
-    const availabilityCounts = {
-      available_1: menuItems.filter(item => item.available === 1).length,
-      available_true: menuItems.filter(item => item.available === true).length,
-      unavailable_0: menuItems.filter(item => item.available === 0).length,
-      unavailable_false: menuItems.filter(item => item.available === false).length,
-      null_undefined: menuItems.filter(item => 
-        item.available === null || item.available === undefined
-      ).length
-    };
-    console.log('📊 Availability counts:', availabilityCounts);
-    
-    // Calculate basic stats from menu items - FIXED!
-    const menuStats = {
-      total_items: menuItems.length,
-      // FIX: Use the same logic as MenuItemsGrid.js
-      available_items: menuItems.filter(item => item.available === 1).length,
-      // Also fix popular count
-      popular_items: menuItems.filter(item => item.popular === 1).length,
-      // Remove average_price since we removed it from MenuStats
-      total_categories: categories.length,
-      // Remove revenue_share since we removed it from MenuStats
-    };
-    
-    console.log('📊 Calculated menu stats:', menuStats);
-    
-    // IMPORTANT: Preserve ALL category data from API, just add item_count
-    const categoriesWithCounts = categories.map(category => {
-      // Check if category is an object with id property
-      if (!category || typeof category !== 'object') {
-        console.warn('Invalid category data:', category);
-        return { ...category, item_count: 0 };
-      }
+    try {
+      // Get menu items and categories
+      const [itemsResponse, categoriesResponse] = await Promise.all([
+        menuAPI.getMenuItems(),
+        menuAPI.getCategories()
+      ]);
       
-      return {
-        ...category, // Keep ALL original fields: id, name, description, station_id, created_at, etc.
-        item_count: menuItems.filter(item => {
-          // Handle both category_id and category.id
-          const itemCategoryId = item.category_id || item.category?.id;
-          return itemCategoryId === category.id;
-        }).length
+      const menuItems = itemsResponse.items || itemsResponse || [];
+      const categories = categoriesResponse.categories || categoriesResponse || [];
+      
+      console.log('📊 Categories from API:', categories); // Debug log
+      
+      // DEBUG: Check what available values we actually have
+      console.log('🔍 Checking menu items availability:');
+      console.log('📊 Total menu items:', menuItems.length);
+      console.log('📊 Sample items (first 3):', menuItems.slice(0, 3).map(item => ({
+        name: item.name,
+        available: item.available,
+        available_type: typeof item.available
+      })));
+      
+      // Count availability types
+      const availabilityCounts = {
+        available_1: menuItems.filter(item => item.available === 1).length,
+        available_true: menuItems.filter(item => item.available === true).length,
+        unavailable_0: menuItems.filter(item => item.available === 0).length,
+        unavailable_false: menuItems.filter(item => item.available === false).length,
+        null_undefined: menuItems.filter(item => 
+          item.available === null || item.available === undefined
+        ).length
       };
-    });
-    
-    console.log('📊 Categories with counts:', categoriesWithCounts); // Debug log
-    
-    setMenuData(menuItems);
-    setCategories(categoriesWithCounts); // This should have ALL original data + item_count
-    setMenuStats(menuStats);
-    
-  } catch (err) {
-    console.error('❌ Error fetching menu data:', err);
-    setError(prev => ({ ...prev, menu: err.message }));
-  } finally {
-    setLoadingData(prev => ({ ...prev, menu: false }));
-  }
-};
+      console.log('📊 Availability counts:', availabilityCounts);
+      
+      // Calculate basic stats from menu items - FIXED!
+      const menuStats = {
+        total_items: menuItems.length,
+        // FIX: Use the same logic as MenuItemsGrid.js
+        available_items: menuItems.filter(item => item.available === 1).length,
+        // Also fix popular count
+        popular_items: menuItems.filter(item => item.popular === 1).length,
+        // Remove average_price since we removed it from MenuStats
+        total_categories: categories.length,
+        // Remove revenue_share since we removed it from MenuStats
+      };
+      
+      console.log('📊 Calculated menu stats:', menuStats);
+      
+      // IMPORTANT: Preserve ALL category data from API, just add item_count
+      const categoriesWithCounts = categories.map(category => {
+        // Check if category is an object with id property
+        if (!category || typeof category !== 'object') {
+          console.warn('Invalid category data:', category);
+          return { ...category, item_count: 0 };
+        }
+        
+        return {
+          ...category, // Keep ALL original fields: id, name, description, station_id, created_at, etc.
+          item_count: menuItems.filter(item => {
+            // Handle both category_id and category.id
+            const itemCategoryId = item.category_id || item.category?.id;
+            return itemCategoryId === category.id;
+          }).length
+        };
+      });
+      
+      console.log('📊 Categories with counts:', categoriesWithCounts); // Debug log
+      
+      setMenuData(menuItems);
+      setCategories(categoriesWithCounts); // This should have ALL original data + item_count
+      setMenuStats(menuStats);
+      
+    } catch (err) {
+      console.error('❌ Error fetching menu data:', err);
+      setError(prev => ({ ...prev, menu: err.message }));
+    } finally {
+      setLoadingData(prev => ({ ...prev, menu: false }));
+    }
+  };
+
   // ========== TABLE CRUD ACTION HANDLERS ==========
   const handleCreateTable = async (tableData) => {
-  console.log('➕ Creating new table - data received:', tableData);
-  
-  // Validate that we got data
-  if (!tableData || typeof tableData !== 'object') {
-    console.error('❌ No table data received or invalid data');
-    alert('Error: No table data received');
-    return false;
-  }
-  
-  const authToken = AuthService.getToken();
-  if (!authToken) {
-    alert('Authentication required');
-    return false;
-  }
-  
-  try {
-    // The data should already have customer_count and notes from TableModal
-    console.log('📤 Sending to API:', tableData);
+    console.log('➕ Creating new table - data received:', tableData);
     
-    const response = await tablesAPI.createTable(tableData, authToken);
-    console.log('✅ API Response:', response);
+    // Validate that we got data
+    if (!tableData || typeof tableData !== 'object') {
+      console.error('❌ No table data received or invalid data');
+      alert('Error: No table data received');
+      return false;
+    }
     
-    alert('Table created successfully');
-    fetchTablesData();
-    setShowTableModal(false);
-    return true;
+    const authToken = AuthService.getToken();
+    if (!authToken) {
+      alert('Authentication required');
+      return false;
+    }
     
-  } catch (err) {
-    console.error('❌ Error creating table:', err);
-    alert(`Error: ${err.message}`);
-    return false;
-  }
-};
- const handleEditTable = async (tableId, tableData) => {
-  console.log('✏️ Editing table:', tableId, tableData);
-  
-  const authToken = AuthService.getToken();
-  if (!authToken) {
-    alert('Authentication required');
-    return false;
-  }
-  
-  try {
-    const response = await tablesAPI.updateTable(tableId, tableData, authToken);
-    console.log('✅ Table updated successfully:', response);
+    try {
+      // The data should already have customer_count and notes from TableModal
+      console.log('📤 Sending to API:', tableData);
+      
+      const response = await tablesAPI.createTable(tableData, authToken);
+      console.log('✅ API Response:', response);
+      
+      alert('Table created successfully');
+      fetchTablesData();
+      setShowTableModal(false);
+      return true;
+      
+    } catch (err) {
+      console.error('❌ Error creating table:', err);
+      alert(`Error: ${err.message}`);
+      return false;
+    }
+  };
+
+  const handleEditTable = async (tableId, tableData) => {
+    console.log('✏️ Editing table:', tableId, tableData);
     
-    alert('Table updated successfully');
-    fetchTablesData();
-    setShowTableModal(false);
-    return true;
-  } catch (err) {
-    console.error('❌ Error updating table:', err);
-    alert(`Error: ${err.message}`);
-    return false;
-  }
-};
+    const authToken = AuthService.getToken();
+    if (!authToken) {
+      alert('Authentication required');
+      return false;
+    }
+    
+    try {
+      const response = await tablesAPI.updateTable(tableId, tableData, authToken);
+      console.log('✅ Table updated successfully:', response);
+      
+      alert('Table updated successfully');
+      fetchTablesData();
+      setShowTableModal(false);
+      return true;
+    } catch (err) {
+      console.error('❌ Error updating table:', err);
+      alert(`Error: ${err.message}`);
+      return false;
+    }
+  };
 
   const handleDeleteTable = async (tableId) => {
     console.log('🗑️ Deleting table:', tableId);
@@ -976,7 +1036,7 @@ const fetchMenuData = async () => {
     try {
       await ordersAPI.updateOrderStatus(orderId, status, authToken);
       alert(`Order status updated to ${status}`);
-      fetchOrdersData();
+      fetchOrdersData(ordersCurrentPage, ordersSearchQuery, ordersFilters);
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
@@ -1232,31 +1292,6 @@ const fetchMenuData = async () => {
       alert(`Error: ${err.message}`);
     }
   };
-   const handleLogout = async () => {
-      try {
-        setOrders([]);
-        setIngredients([]);
-        setMenuItems([]);
-        setStations([]);
-        setKitchenReportData(null);
-        
-        localStorage.clear();
-        sessionStorage.clear();
-        
-        if (logout) {
-          await logout();
-        } else {
-          AuthService.clearToken();
-          window.location.href = '/chef/login';
-        }
-        
-      } catch (error) {
-        localStorage.clear();
-        sessionStorage.clear();
-        AuthService.clearToken();
-        window.location.href = '/chef/login';
-      }
-    };
 
   const handleDeleteUser = async (userId) => {
     console.log('🗑️ Deleting user:', userId);
@@ -1320,6 +1355,44 @@ const fetchMenuData = async () => {
     }
   };
 
+  // ========== ORDERS PAGINATION & FILTERING HANDLERS ==========
+  const handleOrdersPageChange = (page) => {
+    console.log('📄 Changing orders page to:', page);
+    setOrdersCurrentPage(page);
+    fetchOrdersData(page, ordersSearchQuery, ordersFilters);
+  };
+
+  const handleOrdersSearchChange = (search) => {
+    console.log('🔍 Orders search changed:', search);
+    setOrdersSearchQuery(search);
+    setOrdersCurrentPage(1); // Reset to page 1 when searching
+    fetchOrdersData(1, search, ordersFilters);
+  };
+
+  const handleOrdersFilterChange = (newFilters) => {
+    console.log('🎛️ Orders filter changed:', newFilters);
+    const updatedFilters = { ...ordersFilters, ...newFilters };
+    setOrdersFilters(updatedFilters);
+    setOrdersCurrentPage(1); // Reset to page 1 when filtering
+    fetchOrdersData(1, ordersSearchQuery, updatedFilters);
+  };
+
+  const handleClearOrdersFilters = () => {
+    console.log('🧹 Clearing all orders filters');
+    setOrdersSearchQuery('');
+    setOrdersFilters({
+      status: 'all',
+      paymentMethod: 'all',
+      dateRange: 'all'
+    });
+    setOrdersCurrentPage(1);
+    fetchOrdersData(1, '', {
+      status: 'all',
+      paymentMethod: 'all',
+      dateRange: 'all'
+    });
+  };
+
   // ========== UTILITY FUNCTIONS ==========
   const handleRefresh = () => {
     console.log('🔄 Refreshing data for view:', activeView);
@@ -1351,7 +1424,7 @@ const fetchMenuData = async () => {
             fetchTablesData();
             break;
           case 'orders-service':
-            fetchOrdersData();
+            fetchOrdersData(ordersCurrentPage, ordersSearchQuery, ordersFilters);
             break;
           case 'kitchen-operations':
             fetchKitchenData();
@@ -1362,7 +1435,6 @@ const fetchMenuData = async () => {
         fetchDashboardData(timeRange);
     }
   };
-
 
   const handleStaffSelect = (staff) => {
     setSelectedStaff(staff);
@@ -1407,153 +1479,178 @@ const fetchMenuData = async () => {
       fetchDashboardData(newTimeRange);
     }
   };
-  const handleViewReceipt = async (order) => {
-  console.log('📄 Viewing receipt for order:', order);
-  
-  const authToken = AuthService.getToken();
-  if (!authToken) {
-    alert('Authentication required');
-    return;
-  }
-  
-  try {
-    // Call API to get receipt data or generate receipt
-    const receiptData = await ordersAPI.getReceipt(order.id, authToken);
-    
-    if (receiptData.success) {
-      // Open receipt in new window or modal
-      const receiptWindow = window.open('', '_blank');
-      if (receiptWindow) {
-        receiptWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Receipt - ${order.orderNumber || order.id}</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
-              .header { text-align: center; margin-bottom: 20px; }
-              .info { margin: 10px 0; }
-              .items { width: 100%; border-collapse: collapse; margin: 20px 0; }
-              .items th, .items td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-              .total { text-align: right; font-weight: bold; margin-top: 20px; }
-              @media print { button { display: none; } }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h2>Restaurant Receipt</h2>
-              <p>Order: ${order.orderNumber || order.id}</p>
-              <p>Date: ${new Date(order.orderTime || Date.now()).toLocaleString()}</p>
-            </div>
-            
-            <div class="info">
-              <p><strong>Table:</strong> ${order.tableNumber || 'N/A'}</p>
-              <p><strong>Customer:</strong> ${order.customerName || 'Walk-in'}</p>
-              <p><strong>Server:</strong> ${order.server_name || 'N/A'}</p>
-            </div>
-            
-            <table class="items">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Qty</th>
-                  <th>Price</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(order.items || []).map(item => `
-                  <tr>
-                    <td>${item.name || item.item_name || 'Item'}</td>
-                    <td>${item.quantity || 1}</td>
-                    <td>ETB ${(item.price || item.unit_price || 0).toFixed(2)}</td>
-                    <td>ETB ${((item.price || item.unit_price || 0) * (item.quantity || 1)).toFixed(2)}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-            
-            <div class="total">
-              <p>Subtotal: ETB ${(order.total || 0).toFixed(2)}</p>
-              <p>VAT: ETB ${(order.vat_amount || 0).toFixed(2)}</p>
-              <p><strong>Total: ETB ${(order.total_with_vat || order.total_amount || 0).toFixed(2)}</strong></p>
-            </div>
-            
-            <div style="margin-top: 30px; text-align: center;">
-              <p>Thank you for your business!</p>
-              <button onclick="window.print()" style="padding: 10px 20px; margin: 10px;">
-                Print Receipt
-              </button>
-              <button onclick="window.close()" style="padding: 10px 20px; margin: 10px;">
-                Close
-              </button>
-            </div>
-          </body>
-          </html>
-        `);
-        receiptWindow.document.close();
-      }
-    } else {
-      throw new Error(receiptData.error || 'Failed to generate receipt');
-    }
-  } catch (err) {
-    console.error('❌ Error viewing receipt:', err);
-    alert(`Error viewing receipt: ${err.message}`);
-  }
-};
 
-const handleDownloadReceipt = async (order) => {
-  console.log('💾 Downloading receipt for order:', order);
-  
-  const authToken = AuthService.getToken();
-  if (!authToken) {
-    alert('Authentication required');
-    return;
-  }
-  
-  try {
-    // Call API to download receipt as PDF
-    const response = await ordersAPI.downloadReceipt(order.id, authToken);
-    
-    if (response.success) {
-      // Create a download link for the receipt
-      const blob = response.data ? new Blob([response.data], { type: 'application/pdf' }) : null;
+  const handleLogout = async () => {
+    try {
+      setOrdersData([]);
+      setTablesData([]);
+      setMenuData(null);
       
-      if (blob) {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `receipt-${order.orderNumber || order.id}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      if (logout) {
+        await logout();
       } else {
-        alert('Receipt downloaded successfully');
+        AuthService.clearToken();
+        window.location.href = '/manager/login';
       }
-    } else {
-      throw new Error(response.error || 'Failed to download receipt');
+      
+    } catch (error) {
+      localStorage.clear();
+      sessionStorage.clear();
+      AuthService.clearToken();
+      window.location.href = '/manager/login';
     }
-  } catch (err) {
-    console.error('❌ Error downloading receipt:', err);
-    
-    // Fallback: Generate a simple text receipt for download
-    const receiptText = generateTextReceipt(order);
-    const blob = new Blob([receiptText], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `receipt-${order.orderNumber || order.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  }
-};
+  };
 
-// Helper function to generate text receipt
-const generateTextReceipt = (order) => {
-  return `
+  const handleViewReceipt = async (order) => {
+    console.log('📄 Viewing receipt for order:', order);
+    
+    const authToken = AuthService.getToken();
+    if (!authToken) {
+      alert('Authentication required');
+      return;
+    }
+    
+    try {
+      // Call API to get receipt data or generate receipt
+      const receiptData = await ordersAPI.getReceipt(order.id, authToken);
+      
+      if (receiptData.success) {
+        // Open receipt in new window or modal
+        const receiptWindow = window.open('', '_blank');
+        if (receiptWindow) {
+          receiptWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>Receipt - ${order.orderNumber || order.id}</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
+                .header { text-align: center; margin-bottom: 20px; }
+                .info { margin: 10px 0; }
+                .items { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                .items th, .items td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                .total { text-align: right; font-weight: bold; margin-top: 20px; }
+                @media print { button { display: none; } }
+              </style>
+            </head>
+            <body>
+              <div class="header">
+                <h2>Restaurant Receipt</h2>
+                <p>Order: ${order.orderNumber || order.id}</p>
+                <p>Date: ${new Date(order.orderTime || Date.now()).toLocaleString()}</p>
+              </div>
+              
+              <div class="info">
+                <p><strong>Table:</strong> ${order.tableNumber || 'N/A'}</p>
+                <p><strong>Customer:</strong> ${order.customerName || 'Walk-in'}</p>
+                <p><strong>Server:</strong> ${order.server_name || 'N/A'}</p>
+              </div>
+              
+              <table class="items">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${(order.items || []).map(item => `
+                    <tr>
+                      <td>${item.name || item.item_name || 'Item'}</td>
+                      <td>${item.quantity || 1}</td>
+                      <td>ETB ${(item.price || item.unit_price || 0).toFixed(2)}</td>
+                      <td>ETB ${((item.price || item.unit_price || 0) * (item.quantity || 1)).toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              
+              <div class="total">
+                <p>Subtotal: ETB ${(order.total || 0).toFixed(2)}</p>
+                <p>VAT: ETB ${(order.vat_amount || 0).toFixed(2)}</p>
+                <p><strong>Total: ETB ${(order.total_with_vat || order.total_amount || 0).toFixed(2)}</strong></p>
+              </div>
+              
+              <div style="margin-top: 30px; text-align: center;">
+                <p>Thank you for your business!</p>
+                <button onclick="window.print()" style="padding: 10px 20px; margin: 10px;">
+                  Print Receipt
+                </button>
+                <button onclick="window.close()" style="padding: 10px 20px; margin: 10px;">
+                  Close
+                </button>
+              </div>
+            </body>
+            </html>
+          `);
+          receiptWindow.document.close();
+        }
+      } else {
+        throw new Error(receiptData.error || 'Failed to generate receipt');
+      }
+    } catch (err) {
+      console.error('❌ Error viewing receipt:', err);
+      alert(`Error viewing receipt: ${err.message}`);
+    }
+  };
+
+  const handleDownloadReceipt = async (order) => {
+    console.log('💾 Downloading receipt for order:', order);
+    
+    const authToken = AuthService.getToken();
+    if (!authToken) {
+      alert('Authentication required');
+      return;
+    }
+    
+    try {
+      // Call API to download receipt as PDF
+      const response = await ordersAPI.downloadReceipt(order.id, authToken);
+      
+      if (response.success) {
+        // Create a download link for the receipt
+        const blob = response.data ? new Blob([response.data], { type: 'application/pdf' }) : null;
+        
+        if (blob) {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `receipt-${order.orderNumber || order.id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          alert('Receipt downloaded successfully');
+        }
+      } else {
+        throw new Error(response.error || 'Failed to download receipt');
+      }
+    } catch (err) {
+      console.error('❌ Error downloading receipt:', err);
+      
+      // Fallback: Generate a simple text receipt for download
+      const receiptText = generateTextReceipt(order);
+      const blob = new Blob([receiptText], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${order.orderNumber || order.id}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }
+  };
+
+  // Helper function to generate text receipt
+  const generateTextReceipt = (order) => {
+    return `
 Restaurant Receipt
 ===================
 Order Number: ${order.orderNumber || order.id}
@@ -1575,8 +1672,7 @@ Total: ETB ${(order.total_with_vat || order.total_amount || 0).toFixed(2)}
 Thank you for your business!
 =============================
 `;
-};
-
+  };
 
   // ========== RENDER VIEW ==========
   const renderView = () => {
@@ -1602,25 +1698,27 @@ Thank you for your business!
               />
             </>
           );
-      case 'orders-service':
-  return (
-    <OrdersServiceView
-      userRole={user.role}
-      ordersData={ordersData}
-      orderStats={orderStats}
-      isLoading={loadingData.orders}
-      error={error.orders}
-      onRefresh={fetchOrdersData}
-      onUpdateOrderStatus={handleUpdateOrderStatus}
-      onViewReceipt={handleViewReceipt}
-      onDownloadReceipt={handleDownloadReceipt}
-      totalOrders={ordersData.length}
-      currentPage={1}
-      totalPages={Math.ceil(ordersData.length / 20)}
-      pageSize={20}
-    />
-  );
-
+        case 'orders-service':
+          return (
+            <OrdersServiceView
+              userRole={user.role}
+              ordersData={ordersData}
+              orderStats={orderStats}
+              isLoading={loadingData.orders}
+              error={error.orders}
+              onRefresh={() => fetchOrdersData(ordersCurrentPage, ordersSearchQuery, ordersFilters)}
+              onUpdateOrderStatus={handleUpdateOrderStatus}
+              onViewReceipt={handleViewReceipt}
+              onDownloadReceipt={handleDownloadReceipt}
+              totalOrders={ordersTotal}
+              currentPage={ordersCurrentPage}
+              totalPages={ordersTotalPages}
+              onPageChange={handleOrdersPageChange}
+              pageSize={ordersPageSize}
+              onSearchChange={handleOrdersSearchChange}
+              onFilterChange={handleOrdersFilterChange}
+            />
+          );
         case 'kitchen-operations':
           return (
             <KitchenOperationsView
@@ -1690,19 +1788,19 @@ Thank you for your business!
     switch (activeView) {
       case 'dashboard':
         return (
-          <DashboardView
-  performanceStats={dashboardData?.performance_stats || {}}
-  staffPerformance={dashboardData?.staff_performance || []}
-  popularItems={dashboardData?.popular_items || []}
-  recentOrders={dashboardData?.recent_orders || []}  // This is correct - camelCase in component
-  timeRange={timeRange}
-  setActiveView={setActiveView}
-  setSelectedStaff={handleStaffSelect}
-  setShowStaffDetails={setShowStaffDetails}
-  onRefresh={() => fetchDashboardData(timeRange)}
-  isLoading={loadingData.dashboard}
-  userRole={user.role}
-/>
+           <DashboardView
+      performanceStats={dashboardData?.performance_stats || {}}
+      staffPerformance={dashboardData?.staff_performance || []}
+      popularItems={dashboardData?.popular_items || []}
+      recentOrders={dashboardData?.recent_orders || []}  // Make sure it's passing the array
+      timeRange={timeRange}
+      setActiveView={setActiveView}
+      setSelectedStaff={handleStaffSelect}
+      setShowStaffDetails={setShowStaffDetails}
+      onRefresh={() => fetchDashboardData(timeRange)}
+      isLoading={loadingData.dashboard}
+      userRole={user.role}
+    />
         );
       
       case 'staff':

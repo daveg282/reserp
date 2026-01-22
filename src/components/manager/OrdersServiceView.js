@@ -1,14 +1,14 @@
 // components/manager/OrdersServiceView.js
 'use client';
 
-import { useState, Fragment } from 'react';
+import { useState, Fragment, useMemo } from 'react';
 import { 
   Search, RefreshCw, Filter, Printer, Eye, Download, 
   Clock, CheckCircle, XCircle, AlertTriangle, DollarSign,
   Users, Calendar, CreditCard, Smartphone, ChevronRight,
   Loader2, ExternalLink, FileText, ChevronDown, ChevronUp,
   Package, ShoppingBag, Receipt, Tag, Percent,
-  ChevronLeft, ChevronDoubleLeft, ChevronRight as RightIcon, ChevronDoubleRight
+  ChevronLeft, ChevronRight as RightIcon
 } from 'lucide-react';
 
 export default function OrdersServiceView({ 
@@ -19,13 +19,15 @@ export default function OrdersServiceView({
   error = null,
   onRefresh,
   onUpdateOrderStatus,
-  onViewReceipt,  // Parent should pass receipt viewing function
-  onDownloadReceipt,  // Parent should pass receipt download function
-  totalOrders = 0,  // For pagination
+  onViewReceipt,
+  onDownloadReceipt,
+  totalOrders = 0,
   currentPage = 1,
   totalPages = 1,
-  onPageChange,  // Parent handles pagination
-  pageSize = 20
+  onPageChange,
+  pageSize = 20,
+  onSearchChange,  // New: Parent handles search
+  onFilterChange   // New: Parent handles filters
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -38,69 +40,71 @@ export default function OrdersServiceView({
   });
 
   // Transform and normalize orders data from parent
-  const normalizedOrders = Array.isArray(ordersData) ? ordersData.map(order => {
-    // Normalize field names for consistent access
-    // Ensure all numeric values are properly converted to numbers
-    const totalAmount = parseFloat(order.total_amount || order.total_with_tax || order.total || 0);
-    const vatAmount = parseFloat(order.tax_amount || order.vat_amount || 0);
-    const subtotal = parseFloat(order.subtotal || order.total_before_tax || totalAmount - vatAmount || 0);
-    
-    return {
-      id: order.id || order.order_id,
-      orderNumber: order.order_number || order.orderNumber || order.id || `ORD-${order.id}`,
-      tableNumber: order.table_number || order.tableNumber || order.table_id || 'N/A',
-      customerName: order.customer_name || order.customerName || 
-                   `${order.first_name || ''} ${order.last_name || ''}`.trim() || 
-                   (order.customer_id ? `Customer ${order.customer_id}` : 'Walk-in'),
-      customerCount: parseInt(order.customer_count || order.guest_count || order.party_size || 1),
-      orderTime: order.created_at || order.order_date || order.orderTime,
-      status: order.status || 'pending',
-      payment_status: order.payment_status || (order.paid ? 'paid' : 'pending'),
-      payment_method: order.payment_method || order.payment_type || 'cash',
-      total_with_vat: totalAmount,
-      total: subtotal,
-      vat_amount: vatAmount,
-      items: Array.isArray(order.items) ? order.items.map(item => ({
-        ...item,
-        quantity: parseInt(item.quantity || 1),
-        price: parseFloat(item.price || item.unit_price || 0),
-        total: parseFloat(item.total || (item.price || 0) * (item.quantity || 1))
-      })) : Array.isArray(order.order_items) ? order.order_items.map(item => ({
-        ...item,
-        quantity: parseInt(item.quantity || 1),
-        price: parseFloat(item.price || item.unit_price || 0),
-        total: parseFloat(item.total || (item.price || 0) * (item.quantity || 1))
-      })) : [],
-      notes: order.notes || order.special_instructions || '',
-      server_name: order.server_name || order.waiter_name || '',
-      completed_at: order.completed_at,
-      served_at: order.served_at
-    };
-  }) : [];
+  const normalizedOrders = useMemo(() => {
+    return Array.isArray(ordersData) ? ordersData.map(order => {
+      const totalAmount = parseFloat(order.total_amount || order.total_with_tax || order.total || 0);
+      const vatAmount = parseFloat(order.tax_amount || order.vat_amount || 0);
+      const subtotal = parseFloat(order.subtotal || order.total_before_tax || totalAmount - vatAmount || 0);
+      
+      return {
+        id: order.id || order.order_id,
+        orderNumber: order.order_number || order.orderNumber || order.id || `ORD-${order.id}`,
+        tableNumber: order.table_number || order.tableNumber || order.table_id || 'N/A',
+        customerName: order.customer_name || order.customerName || 
+                     `${order.first_name || ''} ${order.last_name || ''}`.trim() || 
+                     (order.customer_id ? `Customer ${order.customer_id}` : 'Walk-in'),
+        customerCount: parseInt(order.customer_count || order.guest_count || order.party_size || 1),
+        orderTime: order.created_at || order.order_date || order.orderTime,
+        status: order.status || 'pending',
+        payment_status: order.payment_status || (order.paid ? 'paid' : 'pending'),
+        payment_method: order.payment_method || order.payment_type || 'cash',
+        total_with_vat: totalAmount,
+        total: subtotal,
+        vat_amount: vatAmount,
+        items: Array.isArray(order.items) ? order.items.map(item => ({
+          ...item,
+          quantity: parseInt(item.quantity || 1),
+          price: parseFloat(item.price || item.unit_price || 0),
+          total: parseFloat(item.total || (item.price || 0) * (item.quantity || 1))
+        })) : Array.isArray(order.order_items) ? order.order_items.map(item => ({
+          ...item,
+          quantity: parseInt(item.quantity || 1),
+          price: parseFloat(item.price || item.unit_price || 0),
+          total: parseFloat(item.total || (item.price || 0) * (item.quantity || 1))
+        })) : [],
+        notes: order.notes || order.special_instructions || '',
+        server_name: order.server_name || order.waiter_name || '',
+        completed_at: order.completed_at,
+        served_at: order.served_at
+      };
+    }) : [];
+  }, [ordersData]);
 
-  // Filter orders locally (client-side filtering for current page)
-  const filteredOrders = normalizedOrders.filter(order => {
-    // Search filter
-    const matchesSearch = 
-      searchQuery === '' ||
-      order.orderNumber?.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.tableNumber?.toString().toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Status filter
-    const matchesStatus = 
-      filterStatus === 'all' || 
-      order.status === filterStatus ||
-      (filterStatus === 'paid' && order.payment_status === 'paid') ||
-      (filterStatus === 'unpaid' && order.payment_status !== 'paid');
-    
-    // Payment method filter
-    const matchesPayment = 
-      filterPayment === 'all' ||
-      order.payment_method?.toLowerCase() === filterPayment.toLowerCase();
-    
-    return matchesSearch && matchesStatus && matchesPayment;
-  });
+  // CLIENT-SIDE FILTERING (for display only on current page)
+  const filteredOrders = useMemo(() => {
+    return normalizedOrders.filter(order => {
+      // Search filter (client-side fallback)
+      const matchesSearch = 
+        searchQuery === '' ||
+        order.orderNumber?.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.tableNumber?.toString().toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Status filter (client-side fallback)
+      const matchesStatus = 
+        filterStatus === 'all' || 
+        order.status === filterStatus ||
+        (filterStatus === 'paid' && order.payment_status === 'paid') ||
+        (filterStatus === 'unpaid' && order.payment_status !== 'paid');
+      
+      // Payment method filter (client-side fallback)
+      const matchesPayment = 
+        filterPayment === 'all' ||
+        order.payment_method?.toLowerCase() === filterPayment.toLowerCase();
+      
+      return matchesSearch && matchesStatus && matchesPayment;
+    });
+  }, [normalizedOrders, searchQuery, filterStatus, filterPayment]);
 
   // Get status badge color
   const getStatusBadge = (status) => {
@@ -216,24 +220,72 @@ export default function OrdersServiceView({
 
   const summary = calculateSummary();
 
-  // Handle pagination
+  // Handle pagination - send to parent
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages && onPageChange) {
       onPageChange(page);
     }
   };
 
-  // Handle search/filter changes
+  // Handle search with debounce
+  const [searchTimeout, setSearchTimeout] = useState(null);
   const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
+    const value = e.target.value;
+    setSearchQuery(value);
+    
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Set new timeout for debouncing
+    const timeout = setTimeout(() => {
+      if (onSearchChange) {
+        onSearchChange(value);
+        // Reset to page 1 when searching
+        if (onPageChange) {
+          onPageChange(1);
+        }
+      }
+    }, 500);
+    
+    setSearchTimeout(timeout);
   };
 
+  // Handle status filter - send to parent
   const handleStatusFilter = (status) => {
     setFilterStatus(status);
+    if (onFilterChange) {
+      onFilterChange({ status });
+      // Reset to page 1 when filtering
+      if (onPageChange) {
+        onPageChange(1);
+      }
+    }
   };
 
+  // Handle payment filter - send to parent
   const handlePaymentFilter = (payment) => {
     setFilterPayment(payment);
+    if (onFilterChange) {
+      onFilterChange({ paymentMethod: payment });
+      // Reset to page 1 when filtering
+      if (onPageChange) {
+        onPageChange(1);
+      }
+    }
+  };
+
+  // Handle date filter - send to parent
+  const handleDateFilter = (date) => {
+    setFilterDate(date);
+    if (onFilterChange) {
+      onFilterChange({ dateRange: date });
+      // Reset to page 1 when filtering
+      if (onPageChange) {
+        onPageChange(1);
+      }
+    }
   };
 
   // Generate page numbers for pagination
@@ -276,6 +328,22 @@ export default function OrdersServiceView({
     } else {
       alert('Receipt download functionality not implemented');
     }
+  };
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setFilterStatus('all');
+    setFilterPayment('all');
+    setFilterDate('all');
+    
+    if (onSearchChange) onSearchChange('');
+    if (onFilterChange) onFilterChange({ 
+      status: 'all', 
+      paymentMethod: 'all', 
+      dateRange: 'all' 
+    });
+    if (onPageChange) onPageChange(1);
   };
 
   // Loading state
@@ -346,7 +414,7 @@ export default function OrdersServiceView({
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-2 bg-white border rounded-lg px-4 py-2">
             <ShoppingBag className="w-4 h-4 text-purple-600" />
-            <span className="text-sm font-medium text-gray-900">{summary.totalOrders}</span>
+            <span className="text-sm font-medium text-gray-900">{totalOrders}</span>
             <span className="text-sm text-gray-600">total orders</span>
           </div>
           
@@ -367,10 +435,10 @@ export default function OrdersServiceView({
             <div>
               <p className="text-sm text-gray-700">Total Orders</p>
               <p className="text-2xl font-bold text-gray-900">
-                {summary.totalOrders}
+                {totalOrders}
               </p>
               <p className="text-xs text-gray-600 mt-1">
-                Showing {normalizedOrders.length} on this page
+                Showing {normalizedOrders.length} on page {currentPage}
               </p>
             </div>
             <ShoppingBag className="w-8 h-8 text-blue-600" />
@@ -380,12 +448,12 @@ export default function OrdersServiceView({
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-700">Total Revenue</p>
+              <p className="text-sm text-gray-700">Page Revenue</p>
               <p className="text-2xl font-bold text-gray-900">
                 ETB {summary.totalRevenue.toFixed(2)}
               </p>
               <p className="text-xs text-gray-600 mt-1">
-                Page total: ETB {summary.totalRevenue.toFixed(2)}
+                Page {currentPage} of {totalPages}
               </p>
             </div>
             <DollarSign className="w-8 h-8 text-emerald-600" />
@@ -415,7 +483,7 @@ export default function OrdersServiceView({
                 ETB {summary.averageOrderValue.toFixed(2)}
               </p>
               <p className="text-xs text-gray-600 mt-1">
-                Page {currentPage} of {totalPages}
+                {pageSize} per page
               </p>
             </div>
             <Tag className="w-8 h-8 text-amber-600" />
@@ -468,7 +536,7 @@ export default function OrdersServiceView({
             
             <select
               value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
+              onChange={(e) => handleDateFilter(e.target.value)}
               className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="all">All Time</option>
@@ -476,17 +544,56 @@ export default function OrdersServiceView({
               <option value="yesterday">Yesterday</option>
               <option value="week">This Week</option>
               <option value="month">This Month</option>
+              <option value="custom">Custom Range</option>
             </select>
+            
+            {(searchQuery || filterStatus !== 'all' || filterPayment !== 'all' || filterDate !== 'all') && (
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-3 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg border transition"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
+        
+        {/* Active filters indicator */}
+        {(searchQuery || filterStatus !== 'all' || filterPayment !== 'all' || filterDate !== 'all') && (
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-600">Active filters:</span>
+              {searchQuery && (
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
+                  Search: "{searchQuery}"
+                </span>
+              )}
+              {filterStatus !== 'all' && (
+                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full">
+                  Status: {filterStatus}
+                </span>
+              )}
+              {filterPayment !== 'all' && (
+                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full">
+                  Payment: {filterPayment}
+                </span>
+              )}
+              {filterDate !== 'all' && (
+                <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full">
+                  Date: {filterDate}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Orders Table */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="px-6 py-4 border-b flex justify-between items-center">
-          <h3 className="font-bold text-gray-900">All Orders ({summary.totalOrders})</h3>
+          <h3 className="font-bold text-gray-900">All Orders ({totalOrders})</h3>
           <div className="text-sm text-gray-600">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, summary.totalOrders)} of {summary.totalOrders}
+            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalOrders)} of {totalOrders}
           </div>
         </div>
         
@@ -515,8 +622,8 @@ export default function OrdersServiceView({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
+              {normalizedOrders.length > 0 ? (
+                normalizedOrders.map((order) => (
                   <Fragment key={order.id}>
                     <tr className="hover:bg-gray-50">
                       <td className="px-6 py-4">
@@ -696,10 +803,18 @@ export default function OrdersServiceView({
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center">
                     <div className="text-gray-500">
-                      {searchQuery || filterStatus !== 'all' || filterPayment !== 'all' ? (
-                        'No orders match your filters'
+                      {searchQuery || filterStatus !== 'all' || filterPayment !== 'all' || filterDate !== 'all' ? (
+                        <>
+                          <p className="mb-2">No orders match your current filters</p>
+                          <button
+                            onClick={handleClearFilters}
+                            className="text-purple-600 hover:text-purple-800 underline"
+                          >
+                            Clear all filters
+                          </button>
+                        </>
                       ) : (
-                        'No orders found on this page'
+                        'No orders found'
                       )}
                     </div>
                   </td>
@@ -709,7 +824,7 @@ export default function OrdersServiceView({
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - Now actually works with server-side pagination */}
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t">
             <div className="flex items-center justify-between">
@@ -718,15 +833,6 @@ export default function OrdersServiceView({
               </div>
               
               <div className="flex items-center gap-2">
-                {/* First Page */}
-                <button
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
-                  className={`p-2 rounded-lg ${currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                
                 {/* Previous Page */}
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
@@ -760,15 +866,6 @@ export default function OrdersServiceView({
                   className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
                 >
                   <RightIcon className="w-4 h-4" />
-                </button>
-                
-                {/* Last Page */}
-                <button
-                  onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
-                >
-                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
               

@@ -351,7 +351,7 @@ export default function KitchenOperationsView({
           <button
             onClick={fetchOrders}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition"
+            className="flex items-center gap-2 px-4 py-2 bg-white border text-black border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -424,7 +424,7 @@ export default function KitchenOperationsView({
               placeholder="Search orders by table, customer, or order number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 text-black rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
         </div>
