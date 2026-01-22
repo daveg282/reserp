@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://vortex-admin-kuku.pro.et/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 // Auth API endpoints
 export const authAPI = {
