@@ -1,9 +1,10 @@
 'use client';
 import { 
   DollarSign, Users, TrendingUp, Clock, Star, 
-  Utensils, TrendingDown, Receipt
+  Utensils, TrendingDown, Receipt, AlertCircle
 } from 'lucide-react';
 import StatsCard from './StatsCard';
+import { useState, useEffect } from 'react';
 
 export default function DashboardView({
   performanceStats = {},
@@ -18,6 +19,21 @@ export default function DashboardView({
   isLoading = false,
   userRole = 'manager'
 }) {
+  // Debug - log what we're receiving
+  useEffect(() => {
+    console.log('🔍 DashboardView received recentOrders:', recentOrders);
+    console.log('🔍 Type:', typeof recentOrders);
+    console.log('🔍 Is array?', Array.isArray(recentOrders));
+    if (recentOrders && recentOrders.length > 0) {
+      console.log('🔍 First order:', recentOrders[0]);
+    }
+  }, [recentOrders]);
+
+  // Fix: Create safe versions of arrays
+  const safeRecentOrders = Array.isArray(recentOrders) ? recentOrders : [];
+  const safeStaffPerformance = Array.isArray(staffPerformance) ? staffPerformance : [];
+  const safePopularItems = Array.isArray(popularItems) ? popularItems : [];
+
   // Default stats structure
   const defaultPerformanceStats = {
     today: {
@@ -63,7 +79,8 @@ export default function DashboardView({
 
   // Format currency with commas
   const formatCurrency = (amount) => {
-    return `ETB ${parseFloat(amount || 0).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+    const num = parseFloat(amount) || 0;
+    return `ETB ${num.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
   };
 
   const stats = [
@@ -102,6 +119,8 @@ export default function DashboardView({
     if (!dateString) return 'Just now';
     try {
       const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Just now';
+      
       const now = new Date();
       const diffMs = now - date;
       const diffMins = Math.floor(diffMs / 60000);
@@ -109,6 +128,7 @@ export default function DashboardView({
       if (diffMins < 1) return 'Just now';
       if (diffMins < 60) return `${diffMins}m ago`;
       if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+      
       return date.toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric',
@@ -116,21 +136,10 @@ export default function DashboardView({
         minute: '2-digit'
       });
     } catch (e) {
+      console.error('Error formatting time:', e, 'for date:', dateString);
       return 'Recently';
     }
   };
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard data...</p>
-        </div>
-      </div>
-    );
-  }
 
   // Calculate staff rating properly
   const calculateStaffRating = (staff) => {
@@ -157,7 +166,19 @@ export default function DashboardView({
   };
 
   // Filter active staff (with sales > 0)
-  const activeStaff = staffPerformance?.filter(staff => (staff.total_sales || 0) > 0) || [];
+  const activeStaff = safeStaffPerformance.filter(staff => (staff.total_sales || 0) > 0);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -191,7 +212,7 @@ export default function DashboardView({
                 .slice(0, 4)
                 .map(staff => (
                   <div 
-                    key={staff.id} 
+                    key={staff.id || staff.name} 
                     className="flex items-center justify-between p-3 lg:p-4 bg-gray-50 rounded-xl border hover:bg-gray-100 transition cursor-pointer"
                     onClick={() => {
                       setSelectedStaff(staff);
@@ -210,10 +231,10 @@ export default function DashboardView({
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
                         <p className="font-bold text-gray-900 text-sm lg:text-base">
-                          {formatCurrency(staff.total_sales)}
+                          {formatCurrency(staff.total_sales || 0)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {staff.orders_handled || 0} orders · {staff.tables_served || 0} tables
+                          {(staff.orders_handled || 0)} orders · {(staff.tables_served || 0)} tables
                         </p>
                       </div>
                       <div className="flex items-center space-x-1">
@@ -248,8 +269,8 @@ export default function DashboardView({
             </button>
           </div>
           <div className="space-y-3">
-            {popularItems && popularItems.length > 0 ? (
-              popularItems.slice(0, 5).map((item, index) => (
+            {safePopularItems.length > 0 ? (
+              safePopularItems.slice(0, 5).map((item, index) => (
                 <div key={item.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
                     <div className="w-8 h-8 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center shrink-0">
@@ -262,11 +283,11 @@ export default function DashboardView({
                   </div>
                   <div className="text-right ml-3">
                     <p className="font-bold text-gray-900 text-sm lg:text-base whitespace-nowrap">
-                      {formatCurrency(item.total_revenue)}
+                      {formatCurrency(item.total_revenue || 0)}
                     </p>
                     <div className="flex items-center justify-end space-x-1">
                       <span className="text-xs text-gray-500 whitespace-nowrap">
-                        {item.order_count || 0} orders
+                        {(item.order_count || 0)} orders
                       </span>
                     </div>
                   </div>
@@ -294,61 +315,77 @@ export default function DashboardView({
           </button>
         </div>
         <div className="space-y-3">
-          {recentOrders && recentOrders.length > 0 ? (
-            recentOrders.map((order, index) => (
-              <div 
-                key={order.id || index} 
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border hover:bg-gray-100 transition cursor-pointer"
-                onClick={() => {
-                  // You can add order details modal here if needed
-                  console.log('Order clicked:', order);
-                }}
-              >
-                <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center shrink-0">
-                    <Receipt className="w-4 h-4 text-blue-600" />
+          {safeRecentOrders.length > 0 ? (
+            safeRecentOrders.map((order, index) => {
+              const orderId = order.id || index;
+              const orderNumber = order.order_number || `Order #${orderId}`;
+              const totalAmount = order.total_amount || 0;
+              const orderTime = order.order_time || new Date().toISOString();
+              const paymentStatus = order.payment_status || order.status || 'pending';
+              const customerName = order.customer_name || 'Walk-in';
+              const tableNumber = order.table_number;
+              
+              return (
+                <div 
+                  key={orderId} 
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border hover:bg-gray-100 transition cursor-pointer"
+                  onClick={() => {
+                    console.log('Order clicked:', order);
+                  }}
+                >
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center shrink-0">
+                      <Receipt className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
+                        {orderNumber}
+                      </p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                          paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                          paymentStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                          paymentStatus === 'preparing' ? 'bg-yellow-100 text-yellow-800' :
+                          paymentStatus === 'pending' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
+                        </span>
+                        <span className="text-xs text-gray-500 truncate">
+                          {customerName}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-gray-900 text-sm lg:text-base truncate">
-                      {order.order_number || `Order #${order.id}`}
+                  <div className="text-right ml-3">
+                    <p className="font-bold text-gray-900 text-sm lg:text-base whitespace-nowrap">
+                      {formatCurrency(totalAmount)}
                     </p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                        order.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
-                        order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        order.status === 'preparing' ? 'bg-yellow-100 text-yellow-800' :
-                        order.status === 'pending' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {order.payment_status === 'paid' ? 'Paid' : 
-                         order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Pending'}
+                    <div className="flex items-center justify-end space-x-1">
+                      <span className="text-xs text-gray-500 whitespace-nowrap">
+                        {tableNumber ? `Table ${tableNumber}` : 'Takeaway'}
                       </span>
-                      <span className="text-xs text-gray-500 truncate">
-                        {order.customer_name || 'Walk-in'}
+                      <span className="text-xs text-gray-500">·</span>
+                      <span className="text-xs text-gray-500 whitespace-nowrap">
+                        {formatTime(orderTime)}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="text-right ml-3">
-                  <p className="font-bold text-gray-900 text-sm lg:text-base whitespace-nowrap">
-                    {formatCurrency(order.total_amount)}
-                  </p>
-                  <div className="flex items-center justify-end space-x-1">
-                    <span className="text-xs text-gray-500 whitespace-nowrap">
-                      {order.table_number ? `Table ${order.table_number}` : 'Takeaway'}
-                    </span>
-                    <span className="text-xs text-gray-500">·</span>
-                    <span className="text-xs text-gray-500 whitespace-nowrap">
-                      {formatTime(order.order_time)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-center py-4">
               <Receipt className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-500 text-sm">No recent orders</p>
+              <p className="text-gray-500 text-sm">
+                No recent orders
+              </p>
+              {!Array.isArray(recentOrders) && (
+                <div className="mt-2 p-2 bg-yellow-50 rounded">
+                  <AlertCircle className="w-4 h-4 text-yellow-600 inline mr-1" />
+                  <span className="text-xs text-yellow-700">Data format issue detected</span>
+                </div>
+              )}
             </div>
           )}
         </div>
