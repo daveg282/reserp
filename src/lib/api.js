@@ -1976,14 +1976,10 @@ export const stationsAPI = {
   }
 };
 
-// Inventory API endpoints for chefs (READ ONLY)
-// ========== CHEF INVENTORY API (READ ONLY) ==========
-// ========== CHEF INVENTORY API (READ ONLY + Recipe Management) ==========
+
 export const chefInventoryAPI = {
   // ========== INGREDIENTS (READ ONLY) ==========
-  
-  // Get all ingredients for chef (read only)
-  // Get all ingredients for chef (read only) - FIXED VERSION
+
 async getIngredients(token) {
   try {
     console.log('📡 chefInventoryAPI.getIngredients called');
@@ -2836,7 +2832,92 @@ async getDashboardData(token, params = {}) {
       console.error('Get revenue trend error:', error);
       throw error;
     }
-  }
+  },
+  async getProfitLossReport(token, params = {}) {
+    try {
+      console.log('💰 Fetching P&L report with params:', params);
+      
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}/reports/financial/pl${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch profit & loss report');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get profit loss report error:', error);
+      throw error;
+    }
+  },
+
+  // Get VAT/Tax report
+  async getVATReport(token, params = {}) {
+    try {
+      console.log('🧾 Fetching VAT report with params:', params);
+      
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}/reports/financial/vat${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch VAT report');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get VAT report error:', error);
+      throw error;
+    }
+  },
+
+  // Get financial summary
+  async getFinancialSummary(token, params = {}) {
+    try {
+      console.log('📈 Fetching financial summary with params:', params);
+      
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}/reports/financial/summary${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch financial summary');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get financial summary error:', error);
+      throw error;
+    }
+  },
 };
 // Cashier-specific API consolidator
 
@@ -3013,5 +3094,995 @@ async getDailySalesReport(token, date = null) {
     console.error('Get daily sales report error:', error);
     throw error;
   }
-}
+},
+ async getProfitLossReport(token, params = {}) {
+    try {
+      console.log('💰 Fetching P&L report with params:', params);
+      
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}/reports/financial/pl${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch profit & loss report');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get profit loss report error:', error);
+      throw error;
+    }
+  },
+
+  // Get VAT/Tax report
+  async getVATReport(token, params = {}) {
+    try {
+      console.log('🧾 Fetching VAT report with params:', params);
+      
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}/reports/financial/vat${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch VAT report');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get VAT report error:', error);
+      throw error;
+    }
+  },
+
+  // Get financial summary
+  async getFinancialSummary(token, params = {}) {
+    try {
+      console.log('📈 Fetching financial summary with params:', params);
+      
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}/reports/financial/summary${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch financial summary');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get financial summary error:', error);
+      throw error;
+    }
+  },
+
+};
+// ========== INVENTORY MANAGEMENT API ==========
+export const inventoryManagementAPI = {
+  // Get all inventory items
+ async getInventory(token) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/inventory/ingredients`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to fetch inventory');
+    }
+    
+    return await response.json(); // Return FULL response
+    
+  } catch (error) {
+    console.error('Get inventory error:', error);
+    throw error;
+  }
+},
+
+  // Create inventory item
+  async createInventoryItem(itemData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/inventory/ingredients`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(itemData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create inventory item');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Create inventory item error:', error);
+      throw error;
+    }
+  },
+
+  // Update inventory item
+  async updateInventoryItem(id, itemData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/inventory/ingredients/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(itemData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update inventory item');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Update inventory item error:', error);
+      throw error;
+    }
+  },
+
+  // Delete inventory item
+  async deleteInventoryItem(id, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/inventory/ingredients/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete inventory item');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Delete inventory item error:', error);
+      throw error;
+    }
+  },
+
+  // Update stock level
+  async updateStockLevel(id, stockData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/inventory/ingredients/${id}/stock`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(stockData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update stock level');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Update stock level error:', error);
+      throw error;
+    }
+  },
+
+  // Bulk update stock
+  async bulkUpdateStock(stockUpdates, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/inventory/bulk-stock-update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ updates: stockUpdates }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to bulk update stock');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Bulk update stock error:', error);
+      throw error;
+    }
+  },
+
+  // Get low stock items
+  async getLowStock(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/inventory/low-stock`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch low stock items');
+      }
+      
+      const data = await response.json();
+      return data.lowStockItems || [];
+      
+    } catch (error) {
+      console.error('Get low stock error:', error);
+      throw error;
+    }
+  },
+
+  // Get stock summary
+  async getStockSummary(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/inventory/stock-summary`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch stock summary');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get stock summary error:', error);
+      throw error;
+    }
+  },
+
+  // Get inventory categories
+  // inventoryManagementAPI.js
+
+async getCategories(token) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/inventory/categories`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      // If endpoint doesn't exist, throw a specific error
+      if (response.status === 404) {
+        throw new Error('Categories endpoint not found');
+      }
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to fetch categories');
+    }
+    
+    return await response.json();
+    
+  } catch (error) {
+    console.error('Get categories error:', error);
+    throw error;
+  }
+},
+
+  // Search ingredients
+  async searchIngredients(query, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/inventory/search?q=${encodeURIComponent(query)}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to search ingredients');
+      }
+      
+      const data = await response.json();
+      return data.ingredients || [];
+      
+    } catch (error) {
+      console.error('Search ingredients error:', error);
+      throw error;
+    }
+  }
+};
+
+// ========== SUPPLIERS API ==========
+export const suppliersAPI = {
+  // Get all suppliers
+  async getSuppliers(token, filters = {}) {
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const url = `${API_BASE_URL}/suppliers${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch suppliers');
+      }
+      
+      const data = await response.json();
+      return data.suppliers || [];
+      
+    } catch (error) {
+      console.error('Get suppliers error:', error);
+      throw error;
+    }
+  },
+
+  // Get supplier by ID
+ async getSuppliers(token, filters = {}) {
+  try {
+    const queryParams = new URLSearchParams(filters).toString();
+    const url = `${API_BASE_URL}/suppliers${queryParams ? `?${queryParams}` : ''}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to fetch suppliers');
+    }
+    
+    const data = await response.json();
+    console.log('📊 Full supplier response:', data); // DEBUG LOG
+    
+    // Check ALL possible response structures
+    if (data.success === true) {
+      // Try multiple possible keys
+      return data.suppliers || data.data || []; // FIXED HERE
+    }
+    
+    // Fallback if no success flag
+    return data.suppliers || data.data || data || [];
+    
+  } catch (error) {
+    console.error('Get suppliers error:', error);
+    throw error;
+  }
+},
+
+  // Create supplier
+  async createSupplier(supplierData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/suppliers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(supplierData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create supplier');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Create supplier error:', error);
+      throw error;
+    }
+  },
+
+  // Update supplier
+  async updateSupplier(id, supplierData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/suppliers/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(supplierData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update supplier');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Update supplier error:', error);
+      throw error;
+    }
+  },
+
+  // Delete supplier
+  // In api.js - suppliersAPI.deleteSupplier
+async deleteSupplier(id, token) {
+  try {
+    console.log(`🗑️ Deleting supplier ${id}`);
+    
+    const response = await fetch(`${API_BASE_URL}/suppliers/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json', // ADD THIS
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    console.log('📡 Delete response status:', response.status);
+    
+    if (!response.ok) {
+      // Try to get detailed error from backend
+      const errorData = await response.json().catch(() => ({}));
+      console.error('📡 Delete error response:', errorData);
+      
+      let errorMessage = 'Failed to delete supplier';
+      if (errorData.message) errorMessage = errorData.message;
+      if (errorData.error) errorMessage = errorData.error;
+      
+      throw new Error(`${errorMessage} (Status: ${response.status})`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ Delete successful:', data);
+    return data;
+    
+  } catch (error) {
+    console.error('❌ Delete supplier API error:', error);
+    throw error; // Re-throw to be caught by page.js
+  }
+},
+
+  // Get suppliers with their ingredients
+  async getSuppliersWithIngredients(supplierId = null, token) {
+    try {
+      let url = `${API_BASE_URL}/suppliers/with-ingredients/all`;
+      if (supplierId) {
+        url = `${API_BASE_URL}/suppliers/${supplierId}/ingredients`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch suppliers with ingredients');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get suppliers with ingredients error:', error);
+      throw error;
+    }
+  },
+
+  // Get supplier performance
+  async getSupplierPerformance(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/suppliers/performance/report`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch supplier performance');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get supplier performance error:', error);
+      throw error;
+    }
+  }
+};
+
+// ========== PURCHASE ORDERS API ==========
+export const purchaseOrdersAPI = {
+  // Get all purchase orders
+  async getPurchaseOrders(token, filters = {}) {
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const url = `${API_BASE_URL}/purchase-orders${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch purchase orders');
+      }
+      
+      const data = await response.json();
+      return data.purchaseOrders || [];
+      
+    } catch (error) {
+      console.error('Get purchase orders error:', error);
+      throw error;
+    }
+  },
+
+  // Get purchase order by ID
+  async getPurchaseOrder(id, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/purchase-orders/${id}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch purchase order');
+      }
+      
+      const data = await response.json();
+      return data.purchaseOrder || null;
+      
+    } catch (error) {
+      console.error('Get purchase order error:', error);
+      throw error;
+    }
+  },
+
+  // Create purchase order
+  async createPurchaseOrder(orderData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/purchase-orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(orderData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to create purchase order');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Create purchase order error:', error);
+      throw error;
+    }
+  },
+
+  // Update purchase order status
+  async updatePurchaseOrderStatus(id, status, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/purchase-orders/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update purchase order status');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Update purchase order status error:', error);
+      throw error;
+    }
+  },
+
+  // Add item to purchase order
+  async addItemToPurchaseOrder(orderId, itemData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/purchase-orders/${orderId}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(itemData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add item to purchase order');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Add item to purchase order error:', error);
+      throw error;
+    }
+  },
+
+  // Remove item from purchase order
+  async removeItemFromPurchaseOrder(orderId, itemId, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/purchase-orders/${orderId}/items/${itemId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to remove item from purchase order');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Remove item from purchase order error:', error);
+      throw error;
+    }
+  },
+
+  // Receive partial shipment
+  async receivePartialShipment(orderId, receiptData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/purchase-orders/${orderId}/receive-partial`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(receiptData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to receive partial shipment');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Receive partial shipment error:', error);
+      throw error;
+    }
+  },
+
+  // Get pending purchase orders
+  async getPendingPurchaseOrders(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/purchase-orders/pending/all`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch pending purchase orders');
+      }
+      
+      const data = await response.json();
+      return data.pendingOrders || [];
+      
+    } catch (error) {
+      console.error('Get pending purchase orders error:', error);
+      throw error;
+    }
+  },
+
+  // Get purchase order statistics
+  async getPurchaseOrderStatistics(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/purchase-orders/statistics/summary`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch purchase order statistics');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get purchase order statistics error:', error);
+      throw error;
+    }
+  },
+
+  // Get suggested purchases for low stock
+  async getSuggestedPurchases(token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/purchase-orders/suggestions/low-stock`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch suggested purchases');
+      }
+      
+      const data = await response.json();
+      return data.suggestions || [];
+      
+    } catch (error) {
+      console.error('Get suggested purchases error:', error);
+      throw error;
+    }
+  }
+};
+
+// ========== RECIPES & COSTING API ==========
+export const recipesCostingAPI = {
+  // Get menu items with costing analysis
+  async getMenuItemsWithCosting(token, filters = {}) {
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const url = `${API_BASE_URL}/menu/items-with-costing${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch menu items with costing');
+      }
+      
+      const data = await response.json();
+      return data.menuItems || [];
+      
+    } catch (error) {
+      console.error('Get menu items with costing error:', error);
+      throw error;
+    }
+  },
+
+  // Get recipe cost breakdown
+  async getRecipeCostBreakdown(menuItemId, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/menu/items/${menuItemId}/cost-breakdown`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch recipe cost breakdown');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get recipe cost breakdown error:', error);
+      throw error;
+    }
+  },
+
+  // Update recipe ingredients (costing)
+  async updateRecipeCosting(menuItemId, costingData, token) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/menu/items/${menuItemId}/costing`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(costingData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update recipe costing');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Update recipe costing error:', error);
+      throw error;
+    }
+  },
+
+  // Calculate optimal menu prices
+  async calculateOptimalPrices(token, params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}/menu/optimal-prices${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to calculate optimal prices');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Calculate optimal prices error:', error);
+      throw error;
+    }
+  },
+
+  // Get profitability analysis
+  async getProfitabilityAnalysis(token, period = 'month') {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reports/profitability/${period}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch profitability analysis');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get profitability analysis error:', error);
+      throw error;
+    }
+  },
+
+  // Get cost variance report
+  async getCostVarianceReport(token, params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}/reports/cost-variance${queryParams ? `?${queryParams}` : ''}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch cost variance report');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get cost variance report error:', error);
+      throw error;
+    }
+  },
+
+  // Get ingredient cost trends
+  async getIngredientCostTrends(token, ingredientId = null) {
+    try {
+      let url = `${API_BASE_URL}/reports/ingredient-cost-trends`;
+      if (ingredientId) {
+        url += `?ingredient_id=${ingredientId}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch ingredient cost trends');
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Get ingredient cost trends error:', error);
+      throw error;
+    }
+  }
 };

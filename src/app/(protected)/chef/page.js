@@ -685,6 +685,163 @@ export default function ChefDashboard() {
     }
   };
 
+  // Recipe management functions - FIXED
+  const handleSaveRecipe = async (recipeData) => {
+    const token = AuthService.getToken();
+    if (!token) {
+      alert('Authentication required');
+      return;
+    }
+    
+    try {
+      console.log('💾 Saving recipe for menu item:', recipeData.menuItemId);
+      console.log('📝 Recipe data:', recipeData);
+      
+      if (!recipeData.menuItemId) {
+        alert('❌ Menu item ID is required');
+        return;
+      }
+      
+      if (!recipeData.ingredients || recipeData.ingredients.length === 0) {
+        alert('❌ Please add at least one ingredient to the recipe');
+        return;
+      }
+      
+      // Prepare ingredients in correct format
+      const formattedIngredients = recipeData.ingredients.map(ing => ({
+        ingredient_id: ing.ingredient_id,
+        quantity_required: parseFloat(ing.quantity_required) || 0,
+        unit: ing.unit || 'unit',
+        notes: ing.notes || ''
+      }));
+      
+      // Use chefInventoryAPI.addIngredientsBulk
+      const result = await chefInventoryAPI.addIngredientsBulk(
+        recipeData.menuItemId,
+        formattedIngredients,
+        token
+      );
+      
+      console.log('✅ Recipe saved successfully:', result);
+      alert('✅ Recipe saved successfully!');
+      
+      // Refresh the menu items data
+      await fetchMenuItems();
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Error saving recipe:', error);
+      alert(`❌ Failed to save recipe: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const handleUpdateRecipe = async (recipeData) => {
+    const token = AuthService.getToken();
+    if (!token) {
+      alert('Authentication required');
+      return;
+    }
+    
+    try {
+      console.log('✏️ Updating recipe for menu item:', recipeData.menuItemId);
+      
+      if (!recipeData.menuItemId) {
+        alert('❌ Menu item ID is required');
+        return;
+      }
+      
+      // First, remove all existing ingredients
+      const menuItem = menuItems.find(m => m.id === recipeData.menuItemId);
+      if (menuItem?.recipe && menuItem.recipe.length > 0) {
+        console.log(`🗑️ Removing ${menuItem.recipe.length} existing ingredients...`);
+        
+        // Remove each existing ingredient
+        for (const ingredient of menuItem.recipe) {
+          await chefInventoryAPI.removeIngredientFromMenuItem(
+            recipeData.menuItemId,
+            ingredient.ingredient_id || ingredient.id,
+            token
+          );
+        }
+      }
+      
+      // Then add the new ingredients if any
+      if (recipeData.ingredients && recipeData.ingredients.length > 0) {
+        console.log(`➕ Adding ${recipeData.ingredients.length} new ingredients...`);
+        
+        // Prepare ingredients in correct format
+        const formattedIngredients = recipeData.ingredients.map(ing => ({
+          ingredient_id: ing.ingredient_id,
+          quantity_required: parseFloat(ing.quantity_required) || 0,
+          unit: ing.unit || 'unit',
+          notes: ing.notes || ''
+        }));
+        
+        await chefInventoryAPI.addIngredientsBulk(
+          recipeData.menuItemId,
+          formattedIngredients,
+          token
+        );
+      }
+      
+      console.log('✅ Recipe updated successfully');
+      alert('✅ Recipe updated successfully!');
+      
+      // Refresh the menu items data
+      await fetchMenuItems();
+      
+    } catch (error) {
+      console.error('❌ Error updating recipe:', error);
+      alert(`❌ Failed to update recipe: ${error.message}`);
+      throw error;
+    }
+  };
+
+  const handleDeleteRecipe = async (menuItemId) => {
+    const token = AuthService.getToken();
+    if (!token) {
+      alert('Authentication required');
+      return;
+    }
+    
+    if (!confirm('Are you sure you want to delete this recipe? This will remove all ingredients but keep the menu item.')) {
+      return;
+    }
+    
+    try {
+      console.log('🗑️ Deleting recipe for menu item:', menuItemId);
+      
+      // Find the menu item to get its ingredients
+      const menuItem = menuItems.find(m => m.id === menuItemId);
+      if (menuItem?.recipe && menuItem.recipe.length > 0) {
+        console.log(`🗑️ Removing ${menuItem.recipe.length} ingredients...`);
+        
+        // Remove each ingredient
+        for (const ingredient of menuItem.recipe) {
+          await chefInventoryAPI.removeIngredientFromMenuItem(
+            menuItemId,
+            ingredient.ingredient_id || ingredient.id,
+            token
+          );
+        }
+      } else {
+        console.log('⚠️ No ingredients found to delete');
+      }
+      
+      alert('✅ Recipe deleted successfully!');
+      
+      // Refresh the menu items data
+      await fetchMenuItems();
+      
+    } catch (error) {
+      console.error('❌ Error deleting recipe:', error);
+      alert(`❌ Failed to delete recipe: ${error.message}`);
+      throw error;
+    }
+  };
+
   // Initialize data on component mount
   useEffect(() => {
     const loadData = async () => {
@@ -885,17 +1042,9 @@ export default function ChefDashboard() {
                 fetchMenuItems();
               }}
               userRole={user?.role}
-              onSaveRecipe={async (recipeData) => {
-                alert('Save recipe functionality');
-              }}
-              onUpdateRecipe={async (recipeData) => {
-                alert('Update recipe functionality');
-              }}
-              onDeleteRecipe={async (menuItemId) => {
-                if (confirm('Delete recipe?')) {
-                  alert(`Delete recipe ${menuItemId}`);
-                }
-              }}
+              onSaveRecipe={handleSaveRecipe}
+              onUpdateRecipe={handleUpdateRecipe}
+              onDeleteRecipe={handleDeleteRecipe}
             />
           )}
 

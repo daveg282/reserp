@@ -10,7 +10,7 @@ import {
   Package, ShoppingBag, Receipt, Tag, Percent,
   ChevronLeft, ChevronRight as RightIcon
 } from 'lucide-react';
-
+import AuthService from '@/lib/auth-utils';
 export default function OrdersServiceView({ 
   userRole,
   ordersData = [],
@@ -20,24 +20,20 @@ export default function OrdersServiceView({
   onRefresh,
   onUpdateOrderStatus,
   onViewReceipt,
-  onDownloadReceipt,
-  totalOrders = 0,
-  currentPage = 1,
-  totalPages = 1,
-  onPageChange,
-  pageSize = 20,
-  onSearchChange,  // New: Parent handles search
-  onFilterChange   // New: Parent handles filters
+  onDownloadReceipt
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPayment, setFilterPayment] = useState('all');
   const [filterDate, setFilterDate] = useState('all');
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
   });
+  const [loadingReceipts, setLoadingReceipts] = useState({}); // Track receipt loading per order
 
   // Transform and normalize orders data from parent
   const normalizedOrders = useMemo(() => {
@@ -75,36 +71,90 @@ export default function OrdersServiceView({
         notes: order.notes || order.special_instructions || '',
         server_name: order.server_name || order.waiter_name || '',
         completed_at: order.completed_at,
-        served_at: order.served_at
+        served_at: order.served_at,
+        rawOrder: order // Keep original order data
       };
     }) : [];
   }, [ordersData]);
 
-  // CLIENT-SIDE FILTERING (for display only on current page)
+  // CLIENT-SIDE FILTERING (main filtering logic)
   const filteredOrders = useMemo(() => {
+    if (!Array.isArray(normalizedOrders)) return [];
+    
     return normalizedOrders.filter(order => {
-      // Search filter (client-side fallback)
+      // Search filter
       const matchesSearch = 
         searchQuery === '' ||
         order.orderNumber?.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.tableNumber?.toString().toLowerCase().includes(searchQuery.toLowerCase());
       
-      // Status filter (client-side fallback)
+      // Status filter
       const matchesStatus = 
         filterStatus === 'all' || 
         order.status === filterStatus ||
         (filterStatus === 'paid' && order.payment_status === 'paid') ||
         (filterStatus === 'unpaid' && order.payment_status !== 'paid');
       
-      // Payment method filter (client-side fallback)
+      // Payment method filter
       const matchesPayment = 
         filterPayment === 'all' ||
         order.payment_method?.toLowerCase() === filterPayment.toLowerCase();
       
-      return matchesSearch && matchesStatus && matchesPayment;
+      // Date filter
+      const matchesDate = (() => {
+        if (filterDate === 'all') return true;
+        if (!order.orderTime) return false;
+        
+        const orderDate = new Date(order.orderTime);
+        const today = new Date();
+        
+        switch (filterDate) {
+          case 'today':
+            return orderDate.toDateString() === today.toDateString();
+          case 'yesterday':
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            return orderDate.toDateString() === yesterday.toDateString();
+          case 'week':
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            return orderDate >= weekAgo;
+          case 'month':
+            const monthAgo = new Date(today);
+            monthAgo.setMonth(monthAgo.getMonth() - 1);
+            return orderDate >= monthAgo;
+          case 'custom':
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999); // Include entire end day
+            return orderDate >= start && orderDate <= end;
+          default:
+            return true;
+        }
+      })();
+      
+      return matchesSearch && matchesStatus && matchesPayment && matchesDate;
     });
-  }, [normalizedOrders, searchQuery, filterStatus, filterPayment]);
+  }, [normalizedOrders, searchQuery, filterStatus, filterPayment, filterDate, dateRange]);
+
+  // CLIENT-SIDE PAGINATION
+  const totalOrders = filteredOrders.length;
+  const totalPages = Math.ceil(totalOrders / pageSize) || 1;
+  
+  // Ensure currentPage is valid
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  if (currentPage !== safeCurrentPage) {
+    // Use timeout to avoid state update during render
+    setTimeout(() => setCurrentPage(safeCurrentPage), 0);
+  }
+  
+  // Get paginated orders
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredOrders.slice(startIndex, endIndex);
+  }, [filteredOrders, safeCurrentPage, pageSize]);
 
   // Get status badge color
   const getStatusBadge = (status) => {
@@ -190,28 +240,28 @@ export default function OrdersServiceView({
     }
   };
 
-  // Calculate summary stats from current data
+  // Calculate summary stats from ALL filtered data (not just current page)
   const calculateSummary = () => {
     const today = new Date().toISOString().split('T')[0];
-    const todayOrders = normalizedOrders.filter(order => 
+    const todayOrders = filteredOrders.filter(order => 
       order.orderTime && order.orderTime.startsWith(today)
     );
     
     return {
-      totalOrders: totalOrders || normalizedOrders.length,
+      totalOrders: filteredOrders.length,
       todayOrders: todayOrders.length,
-      totalRevenue: normalizedOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
+      totalRevenue: filteredOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
       todayRevenue: todayOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
-      paidOrders: normalizedOrders.filter(o => o.payment_status === 'paid').length,
-      pendingOrders: normalizedOrders.filter(o => o.status === 'pending').length,
-      averageOrderValue: normalizedOrders.length > 0 
-        ? normalizedOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0) / normalizedOrders.length 
+      paidOrders: filteredOrders.filter(o => o.payment_status === 'paid').length,
+      pendingOrders: filteredOrders.filter(o => o.status === 'pending').length,
+      averageOrderValue: filteredOrders.length > 0 
+        ? filteredOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0) / filteredOrders.length 
         : 0,
-      cashRevenue: normalizedOrders.filter(o => o.payment_method?.toLowerCase() === 'cash')
+      cashRevenue: filteredOrders.filter(o => o.payment_method?.toLowerCase() === 'cash')
         .reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
-      cardRevenue: normalizedOrders.filter(o => o.payment_method?.toLowerCase() === 'card')
+      cardRevenue: filteredOrders.filter(o => o.payment_method?.toLowerCase() === 'card')
         .reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
-      mobileRevenue: normalizedOrders.filter(o => 
+      mobileRevenue: filteredOrders.filter(o => 
         o.payment_method?.toLowerCase() === 'mobile' || 
         o.payment_method?.toLowerCase() === 'mobile_money'
       ).reduce((sum, order) => sum + (order.total_with_vat || 0), 0)
@@ -220,14 +270,19 @@ export default function OrdersServiceView({
 
   const summary = calculateSummary();
 
-  // Handle pagination - send to parent
+  // Handle pagination
   const handlePageChange = (page) => {
-    if (page >= 1 && page <= totalPages && onPageChange) {
-      onPageChange(page);
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      // Scroll to top of table for better UX
+      const tableElement = document.querySelector('.overflow-x-auto');
+      if (tableElement) {
+        tableElement.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
 
-  // Handle search with debounce
+  // Handle search
   const [searchTimeout, setSearchTimeout] = useState(null);
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -238,54 +293,26 @@ export default function OrdersServiceView({
       clearTimeout(searchTimeout);
     }
     
-    // Set new timeout for debouncing
-    const timeout = setTimeout(() => {
-      if (onSearchChange) {
-        onSearchChange(value);
-        // Reset to page 1 when searching
-        if (onPageChange) {
-          onPageChange(1);
-        }
-      }
-    }, 500);
-    
-    setSearchTimeout(timeout);
+    // Reset to page 1 when searching
+    setCurrentPage(1);
   };
 
-  // Handle status filter - send to parent
+  // Handle status filter
   const handleStatusFilter = (status) => {
     setFilterStatus(status);
-    if (onFilterChange) {
-      onFilterChange({ status });
-      // Reset to page 1 when filtering
-      if (onPageChange) {
-        onPageChange(1);
-      }
-    }
+    setCurrentPage(1); // Reset to page 1 when filtering
   };
 
-  // Handle payment filter - send to parent
+  // Handle payment filter
   const handlePaymentFilter = (payment) => {
     setFilterPayment(payment);
-    if (onFilterChange) {
-      onFilterChange({ paymentMethod: payment });
-      // Reset to page 1 when filtering
-      if (onPageChange) {
-        onPageChange(1);
-      }
-    }
+    setCurrentPage(1); // Reset to page 1 when filtering
   };
 
-  // Handle date filter - send to parent
+  // Handle date filter
   const handleDateFilter = (date) => {
     setFilterDate(date);
-    if (onFilterChange) {
-      onFilterChange({ dateRange: date });
-      // Reset to page 1 when filtering
-      if (onPageChange) {
-        onPageChange(1);
-      }
-    }
+    setCurrentPage(1); // Reset to page 1 when filtering
   };
 
   // Generate page numbers for pagination
@@ -298,7 +325,7 @@ export default function OrdersServiceView({
         pages.push(i);
       }
     } else {
-      let start = Math.max(1, currentPage - 2);
+      let start = Math.max(1, safeCurrentPage - 2);
       let end = Math.min(totalPages, start + maxPages - 1);
       
       if (end - start + 1 < maxPages) {
@@ -313,21 +340,368 @@ export default function OrdersServiceView({
     return pages;
   };
 
-  // Handle receipt actions
-  const handleViewReceipt = (order) => {
-    if (onViewReceipt) {
-      onViewReceipt(order);
-    } else {
-      alert('Receipt view functionality not implemented');
+  // ✅ GET AUTH TOKEN FUNCTION
+  const getAuthToken = () => {
+    // Try to get token from localStorage (adjust based on your auth implementation)
+      const token = AuthService.getToken();
+    if (!token) {
+      console.warn('No auth token found in storage');
+    }
+    
+    return token;
+  };
+
+  // ✅ GENERATE RECEIPT USING HTML ENDPOINT (Same as Billing)
+  const generateReceipt = async (orderId, action = 'view') => {
+    const token = getAuthToken();
+    if (!token) {
+      alert('Authentication required. Please login again.');
+      return;
+    }
+    
+    // Set loading state for this specific order
+    setLoadingReceipts(prev => ({ ...prev, [orderId]: true }));
+    
+    try {
+      console.log(`📄 Generating receipt for order ${orderId} (action: ${action})`);
+      
+      // Call the HTML receipt endpoint (same as billing view)
+      const response = await fetch(
+        `http://localhost:8000/api/billing/orders/${orderId}/receipt/html`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'text/html'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      // Get the HTML receipt
+      const receiptHTML = await response.text();
+      
+      if (action === 'view') {
+        // Open receipt in new tab for viewing
+        const receiptWindow = window.open('', '_blank');
+        if (receiptWindow) {
+          receiptWindow.document.write(receiptHTML);
+          receiptWindow.document.close();
+          
+          // Focus on the window
+          receiptWindow.focus();
+          
+          alert('Receipt opened in new tab');
+        }
+      } else if (action === 'download') {
+        // For download, we can:
+        // 1. Save as PDF (if server supports it)
+        // 2. Or open in new tab and trigger print/download
+        
+        // Option A: Try PDF endpoint if available
+        try {
+          const pdfResponse = await fetch(
+            `/api/billing/orders/${orderId}/receipt/pdf`,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/pdf'
+              }
+            }
+          );
+          
+          if (pdfResponse.ok) {
+            // Create download link for PDF
+            const blob = await pdfResponse.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `receipt-${orderId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            alert('Receipt downloaded as PDF');
+          } else {
+            // Fallback to HTML print
+            throw new Error('PDF endpoint not available');
+          }
+        } catch (pdfError) {
+          console.warn('PDF download failed, using HTML fallback:', pdfError);
+          
+          // Option B: Open HTML and trigger print (user can save as PDF)
+          const receiptWindow = window.open('', '_blank');
+          if (receiptWindow) {
+            receiptWindow.document.write(receiptHTML);
+            receiptWindow.document.close();
+            
+            // Auto-print after a short delay
+            setTimeout(() => {
+              receiptWindow.print();
+            }, 500);
+            
+            alert('Receipt ready to print/save as PDF');
+          }
+        }
+      } else if (action === 'print') {
+        // Open receipt and auto-print
+        const receiptWindow = window.open('', '_blank');
+        if (receiptWindow) {
+          receiptWindow.document.write(receiptHTML);
+          receiptWindow.document.close();
+          
+          // Auto-print after a short delay
+          setTimeout(() => {
+            receiptWindow.print();
+          }, 500);
+          
+          alert('Print dialog opened');
+        }
+      }
+      
+    } catch (err) {
+      console.error('❌ Error generating receipt:', err);
+      
+      // Generate fallback receipt (similar to billing view)
+      const order = normalizedOrders.find(o => o.id === orderId);
+      if (order) {
+        generateFallbackReceipt(order, action);
+      } else {
+        alert(`Could not generate receipt: ${err.message}`);
+      }
+    } finally {
+      // Clear loading state
+      setLoadingReceipts(prev => ({ ...prev, [orderId]: false }));
     }
   };
 
-  const handleDownloadReceipt = (order) => {
+  // ✅ FALLBACK RECEIPT GENERATION (similar to billing view)
+  const generateFallbackReceipt = (order, action = 'view') => {
+    if (!order) return;
+    
+    const subtotal = order.total || order.total_amount || 0;
+    const vatAmount = order.vat_amount || subtotal * 0.15; // 15% VAT
+    const totalWithVAT = subtotal + vatAmount;
+    const finalTotal = totalWithVAT;
+    
+    // Format table information
+    const tableInfo = order.tableNumber || 'Takeaway';
+    
+    // Create receipt HTML
+    const receiptHTML = `
+      <html>
+        <head>
+          <title>Receipt #${order.orderNumber}</title>
+          <style>
+            body { 
+              font-family: 'Courier New', monospace; 
+              padding: 20px; 
+              max-width: 400px;
+              margin: 0 auto;
+            }
+            .receipt { 
+              border: 2px solid #000; 
+              padding: 20px; 
+            }
+            .header { 
+              text-align: center; 
+              border-bottom: 2px dashed #000; 
+              padding-bottom: 15px;
+              margin-bottom: 20px;
+            }
+            .restaurant-name {
+              font-size: 24px;
+              font-weight: bold;
+              margin: 0;
+              text-transform: uppercase;
+            }
+            .restaurant-address {
+              font-size: 14px;
+              margin: 5px 0;
+              text-transform: uppercase;
+            }
+            .row {
+              display: flex;
+              justify-content: space-between;
+              margin: 8px 0;
+              padding: 4px 0;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 15px 0;
+            }
+            .items-table th {
+              text-align: left;
+              border-bottom: 1px solid #000;
+              padding: 8px 0;
+              font-weight: bold;
+            }
+            .items-table td {
+              padding: 6px 0;
+              border-bottom: 1px dashed #ccc;
+            }
+            .items-table tr:last-child td {
+              border-bottom: none;
+            }
+            .total-section {
+              border-top: 2px solid #000;
+              margin-top: 20px;
+              padding-top: 15px;
+            }
+            .highlight {
+              font-weight: bold;
+              font-size: 18px;
+            }
+            .payment-info {
+              background-color: #f5f5f5;
+              padding: 15px;
+              margin: 20px 0;
+              border-radius: 5px;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 30px;
+              font-size: 12px;
+              color: #666;
+            }
+            .vat-note {
+              font-size: 10px;
+              color: #666;
+              text-align: center;
+              margin-top: 10px;
+            }
+            .section-title {
+              font-weight: bold;
+              margin: 15px 0 8px 0;
+              font-size: 16px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt">
+            <div class="header">
+              <h1 class="restaurant-name">KUKU CHICKEN</h1>
+              <p class="restaurant-address">DIRE DIWA ADDIS ABABA</p>
+              <p>Phone: (555) 123-4567</p>
+              <p><strong>RECEIPT #${order.orderNumber}</strong></p>
+              <p>Date: ${new Date().toLocaleString()}</p>
+            </div>
+            
+            <div class="section-title">ORDER DETAILS</div>
+            <div class="row">
+              <span>Customer:</span>
+              <span><strong>${order.customerName || 'Walk-in Customer'}</strong></span>
+            </div>
+            <div class="row">
+              <span>Table:</span>
+              <span><strong>${tableInfo}</strong></span>
+            </div>
+            <div class="row">
+              <span>Payment Status:</span>
+              <span><strong>${order.payment_status || 'pending'}</strong></span>
+            </div>
+            <div class="row">
+              <span>Payment Method:</span>
+              <span>${order.payment_method ? order.payment_method.toUpperCase() : 'CASH'}</span>
+            </div>
+            
+            <div class="section-title">ORDER ITEMS</div>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th style="text-align: right;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${order.items && order.items.length > 0 ? 
+                  order.items.map(item => `
+                    <tr>
+                      <td>${item.name || item.item_name || 'Item'}</td>
+                      <td>${item.quantity || 1}</td>
+                      <td style="text-align: right;">${formatCurrency((item.price || 0) * (item.quantity || 1))}</td>
+                    </tr>
+                  `).join('') : 
+                  '<tr><td colspan="4" style="text-align: center;">No items found</td></tr>'
+                }
+              </tbody>
+            </table>
+            
+            <div class="total-section">
+              <div class="row">
+                <span>Subtotal:</span>
+                <span>${formatCurrency(subtotal)}</span>
+              </div>
+              <div class="row">
+                <span>VAT (15%):</span>
+                <span>${formatCurrency(vatAmount)}</span>
+              </div>
+              <div class="row highlight">
+                <span>FINAL TOTAL:</span>
+                <span>${formatCurrency(finalTotal)}</span>
+              </div>
+            </div>
+            
+            <div class="footer">
+              <p>Thank you for dining with us!</p>
+              <p class="vat-note">VAT included at 15% | TIN: 0000000</p>
+            </div>
+          </div>
+          <script>
+            // Auto-print if action is print
+            setTimeout(() => {
+              ${action === 'print' ? 'window.print();' : ''}
+            }, 500);
+          </script>
+        </body>
+      </html>
+    `;
+    
+    // Open receipt
+    const receiptWindow = window.open('', '_blank');
+    if (receiptWindow) {
+      receiptWindow.document.write(receiptHTML);
+      receiptWindow.document.close();
+      
+      if (action === 'print') {
+        setTimeout(() => {
+          receiptWindow.print();
+        }, 500);
+      }
+    }
+  };
+
+  // ✅ HANDLE VIEW RECEIPT (Eye Icon)
+  const handleViewReceipt = async (order) => {
+    if (onViewReceipt) {
+      // Use parent callback if provided
+      onViewReceipt(order);
+    } else {
+      // Use our local implementation
+      await generateReceipt(order.id, 'view');
+    }
+  };
+
+  // ✅ HANDLE DOWNLOAD RECEIPT (Download Icon)
+  const handleDownloadReceipt = async (order) => {
     if (onDownloadReceipt) {
+      // Use parent callback if provided
       onDownloadReceipt(order);
     } else {
-      alert('Receipt download functionality not implemented');
+      // Use our local implementation
+      await generateReceipt(order.id, 'download');
     }
+  };
+
+  // ✅ HANDLE PRINT RECEIPT (Print Receipt Button in Expanded View)
+  const handlePrintReceipt = async (order) => {
+    await generateReceipt(order.id, 'print');
   };
 
   // Clear all filters
@@ -336,14 +710,13 @@ export default function OrdersServiceView({
     setFilterStatus('all');
     setFilterPayment('all');
     setFilterDate('all');
-    
-    if (onSearchChange) onSearchChange('');
-    if (onFilterChange) onFilterChange({ 
-      status: 'all', 
-      paymentMethod: 'all', 
-      dateRange: 'all' 
-    });
-    if (onPageChange) onPageChange(1);
+    setCurrentPage(1);
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (size) => {
+    setPageSize(Number(size));
+    setCurrentPage(1); // Reset to page 1 when changing page size
   };
 
   // Loading state
@@ -422,8 +795,8 @@ export default function OrdersServiceView({
             onClick={onRefresh}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
           >
-            <RefreshCw className="w-4 h-4" />
-            <span>Refresh</span>
+            <RefreshCw className="w-4 h-4 text-black" />
+            <span className='text-black'>Refresh</span>
           </button>
         </div>
       </div>
@@ -435,10 +808,10 @@ export default function OrdersServiceView({
             <div>
               <p className="text-sm text-gray-700">Total Orders</p>
               <p className="text-2xl font-bold text-gray-900">
-                {totalOrders}
+                {summary.totalOrders}
               </p>
               <p className="text-xs text-gray-600 mt-1">
-                Showing {normalizedOrders.length} on page {currentPage}
+                Showing {paginatedOrders.length} on page {safeCurrentPage}
               </p>
             </div>
             <ShoppingBag className="w-8 h-8 text-blue-600" />
@@ -448,12 +821,12 @@ export default function OrdersServiceView({
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-700">Page Revenue</p>
+              <p className="text-sm text-gray-700">Filtered Revenue</p>
               <p className="text-2xl font-bold text-gray-900">
                 ETB {summary.totalRevenue.toFixed(2)}
               </p>
               <p className="text-xs text-gray-600 mt-1">
-                Page {currentPage} of {totalPages}
+                Page {safeCurrentPage} of {totalPages}
               </p>
             </div>
             <DollarSign className="w-8 h-8 text-emerald-600" />
@@ -501,43 +874,26 @@ export default function OrdersServiceView({
               placeholder="Search orders..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
           
           <div className="flex flex-wrap gap-2">
             <select
-              value={filterStatus}
-              onChange={(e) => handleStatusFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="preparing">Preparing</option>
-              <option value="ready">Ready</option>
-              <option value="completed">Completed</option>
-              <option value="served">Served</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="paid">Paid</option>
-              <option value="unpaid">Unpaid</option>
-            </select>
-            
-            <select
               value={filterPayment}
               onChange={(e) => handlePaymentFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="px-4 py-3 border border-gray-300 text-black rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="all">All Payment</option>
               <option value="cash">Cash</option>
               <option value="card">Card</option>
               <option value="mobile">Mobile</option>
-              <option value="credit">Credit</option>
             </select>
             
             <select
               value={filterDate}
               onChange={(e) => handleDateFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="px-4 py-3 border border-gray-300 text-black rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             >
               <option value="all">All Time</option>
               <option value="today">Today</option>
@@ -546,6 +902,25 @@ export default function OrdersServiceView({
               <option value="month">This Month</option>
               <option value="custom">Custom Range</option>
             </select>
+            
+            {/* Custom date range inputs */}
+            {filterDate === 'custom' && (
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <span className="self-center text-gray-500">to</span>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+            )}
             
             {(searchQuery || filterStatus !== 'all' || filterPayment !== 'all' || filterDate !== 'all') && (
               <button
@@ -591,9 +966,28 @@ export default function OrdersServiceView({
       {/* Orders Table */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="px-6 py-4 border-b flex justify-between items-center">
-          <h3 className="font-bold text-gray-900">All Orders ({totalOrders})</h3>
+          <div className="flex items-center gap-4">
+            <h3 className="font-bold text-gray-900">
+              All Orders ({totalOrders})
+              {filteredOrders.length !== normalizedOrders.length && (
+                <span className="text-sm font-normal text-gray-600 ml-2">
+                  (Filtered from {normalizedOrders.length})
+                </span>
+              )}
+            </h3>
+            <select
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(e.target.value)}
+              className="text-sm border border-gray-300 text-black rounded-lg px-3 py-1 focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="10">10 per page</option>
+              <option value="20">20 per page</option>
+              <option value="50">50 per page</option>
+              <option value="100">100 per page</option>
+            </select>
+          </div>
           <div className="text-sm text-gray-600">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalOrders)} of {totalOrders}
+            Showing {Math.min((safeCurrentPage - 1) * pageSize + 1, totalOrders)} to {Math.min(safeCurrentPage * pageSize, totalOrders)} of {totalOrders}
           </div>
         </div>
         
@@ -622,8 +1016,8 @@ export default function OrdersServiceView({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {normalizedOrders.length > 0 ? (
-                normalizedOrders.map((order) => (
+              {paginatedOrders.length > 0 ? (
+                paginatedOrders.map((order) => (
                   <Fragment key={order.id}>
                     <tr className="hover:bg-gray-50">
                       <td className="px-6 py-4">
@@ -673,19 +1067,18 @@ export default function OrdersServiceView({
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
+                         
                           <button
-                            onClick={() => handleViewReceipt(order)}
-                            className="px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg text-sm flex items-center gap-1"
-                            title="View Receipt"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDownloadReceipt(order)}
-                            className="px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg text-sm flex items-center gap-1"
+                            onClick={() => handlePrintReceipt(order)}
+                            disabled={loadingReceipts[order.id]}
+                            className="px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg text-sm flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Download Receipt"
                           >
-                            <Download className="w-4 h-4" />
+                            {loadingReceipts[order.id] ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
                           </button>
                           <button
                             onClick={() => toggleOrderDetails(order.id)}
@@ -723,13 +1116,7 @@ export default function OrdersServiceView({
                                               Note: {item.special_instructions}
                                             </div>
                                           )}
-                                          {item.status && (
-                                            <div className="text-xs text-gray-500">
-                                              Status: <span className={`px-2 py-0.5 rounded-full ${getStatusBadge(item.status)}`}>
-                                                {formatStatus(item.status)}
-                                              </span>
-                                            </div>
-                                          )}
+                                         
                                         </div>
                                         <div className="text-right">
                                           <div className="font-medium text-gray-900">
@@ -760,37 +1147,25 @@ export default function OrdersServiceView({
                             
                             {/* Order Actions */}
                             <div className="flex gap-2 flex-wrap">
-                              {order.status === 'pending' && onUpdateOrderStatus && (
-                                <button
-                                  onClick={() => onUpdateOrderStatus(order.id, 'preparing')}
-                                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
-                                >
-                                  Mark as Preparing
-                                </button>
-                              )}
-                              {order.status === 'preparing' && onUpdateOrderStatus && (
-                                <button
-                                  onClick={() => onUpdateOrderStatus(order.id, 'ready')}
-                                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                                >
-                                  Mark as Ready
-                                </button>
-                              )}
-                              {order.status === 'ready' && onUpdateOrderStatus && (
-                                <button
-                                  onClick={() => onUpdateOrderStatus(order.id, 'served')}
-                                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-                                >
-                                  Mark as Served
-                                </button>
-                              )}
+                            
                               
+                              {/* ✅ Print Receipt Button */}
                               <button
-                                onClick={() => handleViewReceipt(order)}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                                onClick={() => handlePrintReceipt(order)}
+                                disabled={loadingReceipts[order.id]}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                <Printer className="w-4 h-4" />
-                                Print Receipt
+                                {loadingReceipts[order.id] ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Generating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Printer className="w-4 h-4" />
+                                    Print Receipt
+                                  </>
+                                )}
                               </button>
                             </div>
                           </div>
@@ -824,20 +1199,20 @@ export default function OrdersServiceView({
           </table>
         </div>
 
-        {/* Pagination - Now actually works with server-side pagination */}
+        {/* Pagination - Now works with client-side filtering */}
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-700">
-                Page {currentPage} of {totalPages}
+                Page {safeCurrentPage} of {totalPages} • {totalOrders} orders
               </div>
               
               <div className="flex items-center gap-2">
                 {/* Previous Page */}
                 <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`p-2 rounded-lg ${currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
+                  onClick={() => handlePageChange(safeCurrentPage - 1)}
+                  disabled={safeCurrentPage === 1}
+                  className={`p-2 rounded-lg ${safeCurrentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -849,7 +1224,7 @@ export default function OrdersServiceView({
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
                       className={`w-8 h-8 rounded-lg text-sm font-medium ${
-                        currentPage === pageNum
+                        safeCurrentPage === pageNum
                           ? 'bg-purple-600 text-white'
                           : 'text-gray-700 hover:bg-gray-100'
                       }`}
@@ -861,9 +1236,9 @@ export default function OrdersServiceView({
                 
                 {/* Next Page */}
                 <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
+                  onClick={() => handlePageChange(safeCurrentPage + 1)}
+                  disabled={safeCurrentPage === totalPages}
+                  className={`p-2 rounded-lg ${safeCurrentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-100'}`}
                 >
                   <RightIcon className="w-4 h-4" />
                 </button>

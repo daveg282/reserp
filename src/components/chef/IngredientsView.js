@@ -587,8 +587,8 @@ const IngredientsView = ({
                   <div className="mt-6 p-4 bg-orange-50 rounded-lg">
                     <div className="flex justify-between items-center">
                       <div>
-                        <div className="text-sm text-gray-600">Total Ingredients</div>
-                        <div className="text-lg font-semibold">{recipeForm.ingredients.length}</div>
+                        <div className="text-sm text-black">Total Ingredients</div>
+                        <div className="text-lg font-semibold text-black">{recipeForm.ingredients.length}</div>
                       </div>
                       <div>
                         <div className="text-sm text-gray-600">Availability</div>
@@ -615,7 +615,7 @@ const IngredientsView = ({
                     setEditingRecipe(null);
                     setRecipeForm({ menuItemId: null, ingredients: [] });
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border text-black border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
