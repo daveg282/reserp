@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/auth-context';
-import { stationsAPI, chefInventoryAPI, menuAPI, ordersAPI } from '../../../lib/api'; // Removed kitchenAPI
+import { stationsAPI, chefInventoryAPI, menuAPI, ordersAPI, kitchenAPI } from '../../../lib/api';
 import AuthService from '@/lib/auth-utils';
 
 // Import components
@@ -118,7 +118,8 @@ export default function ChefDashboard() {
             status: item.status || 'pending',
             station: mapCategoryToStation(item.category_name || item.category || 'Unknown'),
             menu_item_id: item.menu_item_id,
-            category: item.category_name || item.category
+            category: item.category_name || item.category,
+            createdAt: item.created_at || null
           }));
           
           orderTotal = orderItems.reduce((sum, item) => {
@@ -150,6 +151,8 @@ export default function ChefDashboard() {
           customerName: customerName,
           customerCount: order.customer_count || 1,
           notes: order.notes || '',
+          hasNewItems: !!order.has_new_items,
+          waiterName: order.waiter_name || order.created_by_name || null,
           rawOrder: order,
           startedTime: order.started_time,
           readyTime: order.ready_time,
@@ -255,17 +258,7 @@ export default function ChefDashboard() {
     setReportError(null);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://vortex-admin-kuku.pro.et/api'}/kitchen/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: Failed to fetch kitchen stats`);
-      }
-      
-      const apiResponse = await response.json();
+      const apiResponse = await kitchenAPI.getKitchenStats(token);
       const transformedData = transformKitchenStatsData(apiResponse);
       setKitchenReportData(transformedData);
       
@@ -584,39 +577,19 @@ export default function ChefDashboard() {
   // ✅ MARK ORDER AS PREPARING - EXACT SAME AS CASHIER
   const markOrderPreparing = async (orderId) => {
     const token = AuthService.getToken();
-    if (!token) {
-      alert('Authentication required');
-      return;
-    }
-    
+    if (!token) { alert('Authentication required'); return; }
     try {
-      console.log(`🔄 Chef marking order ${orderId} as preparing...`);
-      
-      // ✅ SAME API AS CASHIER
       const result = await ordersAPI.updateOrderStatus(orderId, 'preparing', token);
-      console.log('✅ ordersAPI.updateOrderStatus result:', result);
-      
-      // ✅ SAME STATE UPDATE AS CASHIER
       setOrders(prev => prev.map(order => 
         order.id === orderId ? { 
           ...order, 
           status: 'preparing',
+          hasNewItems: false,
           startedTime: order.startedTime || new Date().toISOString(),
-          items: order.items?.map(item => ({
-            ...item,
-            status: 'preparing'
-          }))
+          items: order.items?.map(item => ({ ...item, status: 'preparing' }))
         } : order
       ));
-      
-      console.log(`✅ Order ${orderId} marked as preparing locally`);
-      alert(`✅ Order marked as preparing!`);
-      
-      // Refresh after 2 seconds to sync with backend
-      setTimeout(() => {
-        fetchKitchenData();
-      }, 2000);
-      
+      setTimeout(() => fetchKitchenData(), 2000);
     } catch (err) {
       console.error('❌ Error marking order as preparing:', err);
       alert(`❌ Failed to update order: ${err.message}`);
@@ -626,39 +599,19 @@ export default function ChefDashboard() {
   // ✅ MARK ORDER AS READY - EXACT SAME AS CASHIER
   const markOrderReady = async (orderId) => {
     const token = AuthService.getToken();
-    if (!token) {
-      alert('Authentication required');
-      return;
-    }
-    
+    if (!token) { alert('Authentication required'); return; }
     try {
-      console.log(`✅ Chef marking order ${orderId} as ready...`);
-      
-      // ✅ SAME API AS CASHIER
       const result = await ordersAPI.updateOrderStatus(orderId, 'ready', token);
-      console.log('✅ ordersAPI.updateOrderStatus result:', result);
-      
-      // ✅ SAME STATE UPDATE AS CASHIER
       setOrders(prev => prev.map(order => 
         order.id === orderId ? { 
           ...order, 
           status: 'ready',
+          hasNewItems: false,
           readyTime: order.readyTime || new Date().toISOString(),
-          items: order.items?.map(item => ({
-            ...item,
-            status: 'ready'
-          }))
+          items: order.items?.map(item => ({ ...item, status: 'ready' }))
         } : order
       ));
-      
-      console.log(`✅ Order ${orderId} marked as ready locally`);
-      alert(`✅ Order is ready for pickup!`);
-      
-      // Refresh after 2 seconds to sync with backend
-      setTimeout(() => {
-        fetchKitchenData();
-      }, 2000);
-      
+      setTimeout(() => fetchKitchenData(), 2000);
     } catch (err) {
       console.error('❌ Error marking order as ready:', err);
       alert(`❌ Failed to mark order as ready: ${err.message}`);

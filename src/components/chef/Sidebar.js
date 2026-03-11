@@ -105,9 +105,13 @@ export default function ChefSidebar({
       
       <div 
         id="chef-sidebar"
-        className={`fixed lg:static bg-gradient-to-b from-gray-900 to-gray-800 text-white transition-all duration-300 h-full z-50 ${
-          sidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:translate-x-0 lg:w-20'
-        } flex flex-col`}
+        className={`
+          flex flex-col h-full z-50 flex-shrink-0 overflow-hidden
+          bg-gradient-to-b from-gray-900 to-gray-800 text-white
+          fixed lg:relative
+          transition-[transform,width] duration-300 ease-in-out
+          ${sidebarOpen ? 'w-64 translate-x-0' : '-translate-x-full lg:translate-x-0 w-64 lg:w-20'}
+        `}
       >
         {/* Header */}
         <div className="p-4 lg:p-6 border-b border-gray-700">
@@ -134,7 +138,7 @@ export default function ChefSidebar({
                   setActiveView(item.view);
                   if (window.innerWidth < 1024) setSidebarOpen(false);
                 }}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition ${
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors duration-150 ${
                   activeView === item.view 
                     ? 'bg-blue-600 text-white shadow-lg' 
                     : 'hover:bg-gray-700 text-gray-100'
@@ -142,7 +146,7 @@ export default function ChefSidebar({
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 {sidebarOpen && (
-                  <span className="flex-1 text-left font-medium">
+                  <span className="flex-1 text-left font-medium whitespace-nowrap overflow-hidden">
                     {t(item.label)}
                   </span>
                 )}

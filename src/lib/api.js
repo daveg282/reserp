@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://vortex-admin-kuku.pro.et/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 // Auth API endpoints
 export const authAPI = {
@@ -793,6 +793,23 @@ async getWaiterOrders(token) {
     return data;
   },
 
+
+  // Add item to existing order
+  async addItemToOrder(orderId, itemData, token) {
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(itemData),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to add item to order');
+    }
+    return response.json();
+  },
   // Get kitchen orders (chef/admin/manager)
   async getKitchenOrders(token) {
     const response = await fetch(`${API_BASE_URL}/orders/kitchen`, {

@@ -391,7 +391,7 @@ const StockAdjustmentModal = ({ isOpen, onClose, item, onSubmit }) => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 text-black">
             <div className="flex space-x-4">
               <button
                 type="button"

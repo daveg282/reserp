@@ -610,6 +610,7 @@ const placeOrder = async (customerName = '') => {
               setActiveView={setActiveView}
               isLoading={loadingData.orders}
               refreshOrders={fetchOrders}
+              menuItems={menuItems}
             />
           )}
 

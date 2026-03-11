@@ -43,7 +43,7 @@ export default function SelfServeCashierDashboard() {
   const [cart, setCart] = useState([]);
   const [pagers, setPagers] = useState([]);
   const [showPagerModal, setShowPagerModal] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState({ tableId: null, items: [], customerName: '', pagerNumber: null });
+  const [currentOrder, setCurrentOrder] = useState({ tableId: null, items: [], customerName: '', pagerNumber: null, orderType: 'dine-in' });
   const [paymentData, setPaymentData] = useState({ 
     payment_method: 'cash', 
     tip: 0, 
@@ -435,7 +435,7 @@ export default function SelfServeCashierDashboard() {
 
   const clearCart = () => {
     setCart([]);
-    setCurrentOrder(prev => ({ ...prev, customerName: '', pagerNumber: null }));
+    setCurrentOrder(prev => ({ ...prev, customerName: '', pagerNumber: null, tableId: null, orderType: 'dine-in' }));
   };
 
   const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -480,7 +480,7 @@ export default function SelfServeCashierDashboard() {
       return;
     }
     
-    if (!currentOrder.tableId) {
+    if (!currentOrder.tableId && currentOrder.orderType !== 'takeaway') {
       console.error('❌ Validation failed: No table selected');
       alert('Please select a table first');
       return;
@@ -496,12 +496,22 @@ export default function SelfServeCashierDashboard() {
     try {
       setIsLoading(true);
       
-      // Find table
-      const selectedTable = tables.find(table => table.id === currentOrder.tableId);
-      if (!selectedTable) {
-        console.error('❌ Table not found with ID:', currentOrder.tableId);
-        alert('Table not found');
-        return;
+      const isTakeaway = currentOrder.tableId === 'takeaway' || currentOrder.orderType === 'takeaway';
+
+      // Find table — for takeaway, look for a table named "Takeaway" or use tableId
+      let selectedTable = null;
+      if (isTakeaway) {
+        selectedTable = tables.find(t =>
+          t.name?.toLowerCase().includes('takeaway') ||
+          t.number?.toString().toLowerCase().includes('takeaway')
+        ) || { id: null, number: 'Takeaway', customers: 1 };
+      } else {
+        selectedTable = tables.find(table => table.id === currentOrder.tableId);
+        if (!selectedTable) {
+          console.error('❌ Table not found with ID:', currentOrder.tableId);
+          alert('Table not found');
+          return;
+        }
       }
       
       // Determine final customer name
@@ -524,9 +534,10 @@ export default function SelfServeCashierDashboard() {
       
       // Prepare order data
       const orderData = {
-        table_id: currentOrder.tableId,
+        table_id: isTakeaway ? (selectedTable?.id || null) : currentOrder.tableId,
         customer_name: finalCustomerName,
         customer_count: selectedTable.customers || 1,
+        order_type: currentOrder.orderType || 'dine-in',
         notes: currentOrder.notes || '',
         items: cart.map(item => ({
           menu_item_id: item.id,
@@ -562,7 +573,8 @@ export default function SelfServeCashierDashboard() {
           tableId: null,
           customerName: '',
           pagerNumber: null,
-          notes: ''
+          notes: '',
+          orderType: 'dine-in'
         });
         
         // Refresh and show success
@@ -1322,6 +1334,7 @@ const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT, paymentPaylo
               isLoading={loadingStates.orders}
               error={errorStates.orders}
               onRefresh={fetchOrders}
+              menuItems={menuItems}
             />
           )}
 
