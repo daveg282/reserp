@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://vortex-admin-kuku.pro.et/api';
+const API_BASE_URL = 'https://vortex-admin-kuku.pro.et/api'; // CHANGE THIS TO YOUR BACKEND URL
 
 // Auth API endpoints
 export const authAPI = {
@@ -2522,7 +2522,138 @@ async getIngredients(token) {
 // Report API - following your exact chefInventoryAPI pattern
 export const reportAPI = {
   // Get dashboard data for admin/manager
- // Get dashboard data for admin/manager
+// lib/api.js - Add these methods to your existing reportAPI object
+
+// Add to reportAPI in your existing api.js file
+async generateAdvancedReport(params, token) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reports/advanced`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(params)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error generating advanced report:', error);
+    throw error;
+  }
+},
+
+async exportReportPDF(reportId, token) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reports/${reportId}/export/pdf`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    return await response.blob();
+  } catch (error) {
+    console.error('Error exporting PDF:', error);
+    throw error;
+  }
+},
+
+async exportReportExcel(reportId, token) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reports/${reportId}/export/excel`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    return await response.blob();
+  } catch (error) {
+    console.error('Error exporting Excel:', error);
+    throw error;
+  }
+},
+
+async emailReport(reportId, email, token) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reports/${reportId}/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ email })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error emailing report:', error);
+    throw error;
+  }
+},
+
+async getItemSalesAnalysis(params, token) {
+  try {
+    const queryParams = new URLSearchParams(params).toString();
+    const response = await fetch(`${API_BASE_URL}/api/reports/items/analysis?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting item sales analysis:', error);
+    throw error;
+  }
+},
+
+async getOrderDetailsReport(params, token) {
+  try {
+    const queryParams = new URLSearchParams(params).toString();
+    const response = await fetch(`${API_BASE_URL}/api/reports/orders/details?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting order details report:', error);
+    throw error;
+  }
+},
 async getDashboardData(token, params = {}) {
   try {
     console.log('📊 Fetching dashboard data with params:', params);

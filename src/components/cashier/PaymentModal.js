@@ -11,32 +11,20 @@ export default function PaymentModal({
 }) {
   if (!showPaymentModal || !selectedOrder) return null;
 
-  // Ethiopian VAT Rate (15% standard rate)
-  const VAT_RATE = 0.15;
-
   // Safely get order data
   const orderTotal = selectedOrder.total || selectedOrder.total_amount || selectedOrder.amount || 0;
   const orderNumber = selectedOrder.orderNumber || selectedOrder.order_number || `#${selectedOrder.id}`;
   const customerName = selectedOrder.customerName || selectedOrder.customer_name || 'Walk-in Customer';
   const pagerNumber = selectedOrder.pagerNumber || selectedOrder.pager_number;
-  
-  // Calculate Ethiopian VAT
-  const calculateEthiopianTaxes = (subtotal) => {
-    const vatAmount = subtotal * VAT_RATE;
-    
-    return {
-      subtotal: subtotal,
-      vatAmount: vatAmount,
-      vatRate: VAT_RATE,
-      grandTotal: subtotal + vatAmount
-    };
-  };
 
-  // Calculate all amounts
-  const subtotal = parseFloat(orderTotal);
-  const taxes = calculateEthiopianTaxes(subtotal);
-  const tipAmount = paymentData.tip || 0;
-  const totalToPay = taxes.grandTotal + tipAmount;
+  // ─── VAT CALCULATION (prices are VAT-inclusive) ───────────────────────────
+  // Back-calculate net and VAT — do NOT add 15% on top of an already-inclusive price
+  const vatInclusiveTotal = parseFloat(orderTotal);
+  const netAmount         = vatInclusiveTotal / 1.15;        // pre-VAT base
+  const vatAmount         = vatInclusiveTotal - netAmount;   // component already inside price
+  const tipAmount         = parseFloat(paymentData.tip) || 0;
+  const totalToPay        = vatInclusiveTotal + tipAmount;   // VAT already baked in
+  // ─────────────────────────────────────────────────────────────────────────
 
   const paymentMethods = [
     { value: 'cash', label: 'Cash', icon: Wallet, color: 'bg-green-100 text-green-600' },
@@ -45,25 +33,12 @@ export default function PaymentModal({
   ];
 
   const handleMethodChange = (methodValue) => {
-    setPaymentData(prev => ({ 
-      ...prev, 
-      payment_method: methodValue
-    }));
-  };
-
-  const handleTipChange = (tipValue) => {
-    setPaymentData(prev => ({ 
-      ...prev, 
-      tip: tipValue 
-    }));
+    setPaymentData(prev => ({ ...prev, payment_method: methodValue }));
   };
 
   const handleTipInputChange = (e) => {
     const value = parseFloat(e.target.value) || 0;
-    setPaymentData(prev => ({ 
-      ...prev, 
-      tip: value 
-    }));
+    setPaymentData(prev => ({ ...prev, tip: value }));
   };
 
   return (
@@ -75,8 +50,8 @@ export default function PaymentModal({
             <h3 className="text-lg lg:text-xl font-bold text-gray-900">Process Payment</h3>
             <p className="text-sm text-gray-600">Complete payment for this order</p>
           </div>
-          <button 
-            onClick={() => setShowPaymentModal(false)} 
+          <button
+            onClick={() => setShowPaymentModal(false)}
             className="ml-2 p-2 hover:bg-gray-100 rounded-full transition"
           >
             <X className="w-5 h-5 text-gray-500" />
@@ -86,6 +61,7 @@ export default function PaymentModal({
         {/* Content */}
         <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
           <div className="p-4 lg:p-6 space-y-4">
+
             {/* Order Info */}
             <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
               <p className="font-semibold text-gray-900">Order #{orderNumber}</p>
@@ -96,10 +72,8 @@ export default function PaymentModal({
             </div>
 
             {/* Payment Method */}
-            <div className='text-black'>
-              <label className="block text-sm font-medium mb-3">
-                Payment Method
-              </label>
+            <div className="text-black">
+              <label className="block text-sm font-medium mb-3">Payment Method</label>
               <div className="grid grid-cols-3 gap-2">
                 {paymentMethods.map(method => {
                   const Icon = method.icon;
@@ -127,7 +101,7 @@ export default function PaymentModal({
               )}
             </div>
 
-            {/* Tax Breakdown - SIMPLIFIED FOR ETHIOPIA */}
+            {/* VAT Breakdown */}
             <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200 text-black">
               <div className="flex items-center gap-2 mb-3">
                 <Info className="w-5 h-5 text-yellow-600" />
@@ -135,38 +109,50 @@ export default function PaymentModal({
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal:</span>
-                  <span className="font-medium">{subtotal.toFixed(2)} ETB</span>
+                  <span className="text-gray-600">Net Amount (excl. VAT):</span>
+                  <span className="font-medium">{netAmount.toFixed(2)} ETB</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">
-                    VAT ({VAT_RATE * 100}%):
-                  </span>
-                  <span className="font-medium">{taxes.vatAmount.toFixed(2)} ETB</span>
+                  <span className="text-gray-600">VAT (15%) <em className="text-xs text-gray-400">incl. in price</em>:</span>
+                  <span className="font-medium">{vatAmount.toFixed(2)} ETB</span>
                 </div>
                 <div className="border-t border-yellow-200 pt-2 mt-2">
                   <div className="flex justify-between font-bold text-black">
-                    <span>Order Total (with VAT):</span>
-                    <span className="text-blue-600">{taxes.grandTotal.toFixed(2)} ETB</span>
+                    <span>Order Total (VAT inclusive):</span>
+                    <span className="text-blue-600">{vatInclusiveTotal.toFixed(2)} ETB</span>
                   </div>
                 </div>
               </div>
             </div>
 
+            {/* Tip */}
+            <div className="text-black">
+              <label className="block text-sm font-medium mb-2">Tip (optional)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.50"
+                value={paymentData.tip || ''}
+                onChange={handleTipInputChange}
+                placeholder="0.00"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
-
-            {/* Final Summary */}
+            {/* Payment Summary */}
             <div className="bg-blue-50 rounded-lg p-4 border text-black border-blue-200">
               <h4 className="font-medium text-gray-900 mb-3">Payment Summary</h4>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Order with VAT:</span>
-                  <span className="font-medium">{taxes.grandTotal.toFixed(2)} ETB</span>
+                  <span className="text-gray-600">Order Total (VAT incl.):</span>
+                  <span className="font-medium">{vatInclusiveTotal.toFixed(2)} ETB</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tip:</span>
-                  <span className="font-medium">{(paymentData.tip || 0).toFixed(2)} ETB</span>
-                </div>
+                {tipAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Tip:</span>
+                    <span className="font-medium">+ {tipAmount.toFixed(2)} ETB</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Payment Method:</span>
                   <span className="font-medium capitalize">
@@ -205,8 +191,9 @@ export default function PaymentModal({
 
             {/* Tax Note */}
             <div className="text-xs text-gray-500 text-center pt-2">
-              <p>Note: Ethiopian standard VAT rate of 15% applied as per government regulations.</p>
+              <p>Prices are VAT-inclusive at the standard Ethiopian rate of 15%.</p>
             </div>
+
           </div>
         </div>
       </div>

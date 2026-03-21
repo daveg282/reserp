@@ -247,22 +247,25 @@ export default function OrdersServiceView({
       order.orderTime && order.orderTime.startsWith(today)
     );
     
+    const paidOrders = filteredOrders.filter(o => o.payment_status === 'paid');
+    const paidTodayOrders = todayOrders.filter(o => o.payment_status === 'paid');
+
     return {
       totalOrders: filteredOrders.length,
       todayOrders: todayOrders.length,
-      totalRevenue: filteredOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
-      todayRevenue: todayOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
-      paidOrders: filteredOrders.filter(o => o.payment_status === 'paid').length,
+      totalRevenue: paidOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
+      todayRevenue: paidTodayOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
+      paidOrders: paidOrders.length,
       pendingOrders: filteredOrders.filter(o => o.status === 'pending').length,
-      averageOrderValue: filteredOrders.length > 0 
-        ? filteredOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0) / filteredOrders.length 
+      averageOrderValue: paidOrders.length > 0
+        ? paidOrders.reduce((sum, order) => sum + (order.total_with_vat || 0), 0) / paidOrders.length
         : 0,
-      cashRevenue: filteredOrders.filter(o => o.payment_method?.toLowerCase() === 'cash')
+      cashRevenue: paidOrders.filter(o => o.payment_method?.toLowerCase() === 'cash')
         .reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
-      cardRevenue: filteredOrders.filter(o => o.payment_method?.toLowerCase() === 'card')
+      cardRevenue: paidOrders.filter(o => o.payment_method?.toLowerCase() === 'card')
         .reduce((sum, order) => sum + (order.total_with_vat || 0), 0),
-      mobileRevenue: filteredOrders.filter(o => 
-        o.payment_method?.toLowerCase() === 'mobile' || 
+      mobileRevenue: paidOrders.filter(o =>
+        o.payment_method?.toLowerCase() === 'mobile' ||
         o.payment_method?.toLowerCase() === 'mobile_money'
       ).reduce((sum, order) => sum + (order.total_with_vat || 0), 0)
     };
@@ -821,12 +824,12 @@ export default function OrdersServiceView({
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-700">Filtered Revenue</p>
+              <p className="text-sm text-gray-700">Collected Revenue</p>
               <p className="text-2xl font-bold text-gray-900">
                 ETB {summary.totalRevenue.toFixed(2)}
               </p>
               <p className="text-xs text-gray-600 mt-1">
-                Page {safeCurrentPage} of {totalPages}
+                Paid orders only
               </p>
             </div>
             <DollarSign className="w-8 h-8 text-emerald-600" />
@@ -856,7 +859,7 @@ export default function OrdersServiceView({
                 ETB {summary.averageOrderValue.toFixed(2)}
               </p>
               <p className="text-xs text-gray-600 mt-1">
-                {pageSize} per page
+                Paid orders only
               </p>
             </div>
             <Tag className="w-8 h-8 text-amber-600" />

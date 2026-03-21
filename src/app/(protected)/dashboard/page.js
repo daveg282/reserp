@@ -20,7 +20,7 @@ import SettingsView from '@/components/manager/SettingsView';
 import MenuManagement from '@/components/manager/MenuManagement';
 import UserManagement from '@/components/manager/UserManagement';
 import SystemConfiguration from '@/components/manager/SystemSetting';
-
+import AdvancedReportGenerator from '@/components/manager/AdvancedReportGenerator'; // ADD THIS IMPORT
 // Operations View Components
 import TablesReservationsView from '@/components/manager/TablesReservationsView';
 import OrdersServiceView from '@/components/manager/OrdersServiceView';
@@ -53,7 +53,9 @@ export default function ManagerDashboard() {
   const [timeRange, setTimeRange] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-
+// Report Generator States - ADD THESE
+const [generatedReport, setGeneratedReport] = useState(null);
+const [reportGenerationLoading, setReportGenerationLoading] = useState(false);
   // Table Modal State
   const [showTableModal, setShowTableModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
@@ -595,6 +597,33 @@ const fetchFinancialData = async (period = 'month', startDate = null, endDate = 
       setLoadingData(prev => ({ ...prev, orders: false }));
     }
   };
+
+  // ========== REPORT GENERATOR HANDLERS ==========
+const handleGenerateReport = async (reportData) => {
+  console.log('📊 Report generated:', reportData);
+  setGeneratedReport(reportData);
+  // Optionally save to state or trigger other actions
+};
+
+const handleExportPDF = async (reportId) => {
+  console.log('📄 Exporting PDF for report:', reportId);
+  // Implement PDF export logic
+};
+
+const handleExportExcel = async (reportId) => {
+  console.log('📊 Exporting Excel for report:', reportId);
+  // Implement Excel export logic
+};
+
+const handlePrintReport = async (reportId) => {
+  console.log('🖨️ Printing report:', reportId);
+  // Implement print logic
+};
+
+const handleEmailReport = async (reportId, email) => {
+  console.log('📧 Emailing report:', reportId, 'to:', email);
+  // Implement email logic
+};
 
   // Helper function to calculate average order time
   const calculateAverageOrderTime = (orders) => {
@@ -2550,69 +2579,82 @@ Thank you for your business!
   };
 
   // ========== RENDER VIEW ==========
-  const renderView = () => {
-    // Handle Operations subsection views
-    if (activeView === 'operations') {
-      switch (activeSubsection) {
-        case 'tables-reservations':
-          return (
-            <>
-              <TablesReservationsView
-                userRole={user.role}
-                tablesData={tablesData}
-                tableStats={tableStats}
-                isLoading={loadingData.tables}
-                error={error.tables}
-                onRefresh={fetchTablesData}
-                onOccupyTable={handleOccupyTable}
-                onFreeTable={handleFreeTable}
-                onReserveTable={handleReserveTable}
-                onAddTable={openCreateTableModal}
-                onEditTable={openEditTableModal}
-                onDeleteTable={handleDeleteTable}
-              />
-            </>
-          );
-        case 'orders-service':
-          return (
-            <OrdersServiceView
+ const renderView = () => {
+  // Handle Operations subsection views
+  if (activeView === 'operations') {
+    switch (activeSubsection) {
+      case 'tables-reservations':
+        return (
+          <>
+            <TablesReservationsView
               userRole={user.role}
-              ordersData={ordersData}
-              orderStats={orderStats}
-              isLoading={loadingData.orders}
-              error={error.orders}
-              onRefresh={fetchOrdersData}
-              onUpdateOrderStatus={handleUpdateOrderStatus}
-              onViewReceipt={handleViewReceipt}
-              onDownloadReceipt={handleDownloadReceipt}
-              totalOrders={ordersData.length}
-              currentPage={1}
-              totalPages={Math.ceil(ordersData.length / 20)}
-              pageSize={20}
+              tablesData={tablesData}
+              tableStats={tableStats}
+              isLoading={loadingData.tables}
+              error={error.tables}
+              onRefresh={fetchTablesData}
+              onOccupyTable={handleOccupyTable}
+              onFreeTable={handleFreeTable}
+              onReserveTable={handleReserveTable}
+              onAddTable={openCreateTableModal}
+              onEditTable={openEditTableModal}
+              onDeleteTable={handleDeleteTable}
             />
-          );
-        case 'kitchen-operations':
-          return (
-            <KitchenOperationsView
-              userRole={user.role}
-              kitchenData={kitchenData}
-              kitchenStats={kitchenStats}
-              isLoading={loadingData.kitchen}
-              error={error.kitchen}
-              onRefresh={fetchKitchenData}
-              onUpdateItemStatus={handleUpdateKitchenItemStatus}
-              onUpdateOrderStatus={handleUpdateKitchenOrderStatus}
-            />
-          );
-        default:
-          return (
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-2xl font-bold text-gray-900">Operations Dashboard</h2>
-              <p className="text-gray-600 mt-2">Select an operations subsection from the sidebar.</p>
-            </div>
-          );
-      }
+          </>
+        );
+      case 'orders-service':
+        return (
+          <OrdersServiceView
+            userRole={user.role}
+            ordersData={ordersData}
+            orderStats={orderStats}
+            isLoading={loadingData.orders}
+            error={error.orders}
+            onRefresh={fetchOrdersData}
+            onUpdateOrderStatus={handleUpdateOrderStatus}
+            onViewReceipt={handleViewReceipt}
+            onDownloadReceipt={handleDownloadReceipt}
+            totalOrders={ordersData.length}
+            currentPage={1}
+            totalPages={Math.ceil(ordersData.length / 20)}
+            pageSize={20}
+          />
+        );
+      case 'kitchen-operations':
+        return (
+          <KitchenOperationsView
+            userRole={user.role}
+            kitchenData={kitchenData}
+            kitchenStats={kitchenStats}
+            isLoading={loadingData.kitchen}
+            error={error.kitchen}
+            onRefresh={fetchKitchenData}
+            onUpdateItemStatus={handleUpdateKitchenItemStatus}
+            onUpdateOrderStatus={handleUpdateKitchenOrderStatus}
+          />
+        );
+      case 'advanced-report-generator': // ADD THIS NEW CASE
+        return (
+          <AdvancedReportGenerator
+            userRole={user.role}
+            onGenerateReport={handleGenerateReport}
+            onExportPDF={handleExportPDF}
+            onExportExcel={handleExportExcel}
+            onPrint={handlePrintReport}
+            onEmailReport={handleEmailReport}
+            isLoading={loadingData.reportGeneration || false}
+          />
+        );
+      default:
+        return (
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-gray-900">Operations Dashboard</h2>
+            <p className="text-gray-600 mt-2">Select an operations subsection from the sidebar.</p>
+          </div>
+        );
     }
+  }
+
    if (activeView === 'financial') {
     // Map sidebar subsection to FinancialDashboard viewType
     let viewType = 'summary'; // default

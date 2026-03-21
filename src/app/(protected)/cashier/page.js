@@ -632,31 +632,33 @@ export default function SelfServeCashierDashboard() {
   try {
     setIsLoading(true);
     
-    // Calculate VAT (15% of subtotal)
-    const VAT_RATE = 0.15;
-    const orderTotal = selectedOrder.total || selectedOrder.total_amount || 0;
-    const subtotal = parseFloat(orderTotal);
-    const vatAmount = subtotal * VAT_RATE;
-    const totalWithVAT = subtotal + vatAmount;
-    const finalTotal = totalWithVAT + (paymentData.tip || 0);
-    
-    // Prepare payment payload in correct format for backend
+    // ─── VAT CALCULATION (prices are VAT-inclusive) ───────────────────────────
+    // Back-calculate net and VAT — do NOT add VAT on top of an already-inclusive total
+    const vatInclusiveTotal = parseFloat(selectedOrder.total || selectedOrder.total_amount || 0);
+    const netAmount  = vatInclusiveTotal / 1.15;           // pre-VAT base
+    const vatAmount  = vatInclusiveTotal - netAmount;      // = total × 0.15/1.15 ≈ 13.04%
+    const tip        = parseFloat(paymentData.tip)      || 0;
+    const discount   = parseFloat(paymentData.discount) || 0;
+    const finalTotal = vatInclusiveTotal + tip - discount; // VAT already baked in
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Prepare payment payload for backend
     const paymentPayload = {
       payment_method: paymentData.payment_method,
-      tip: parseFloat(paymentData.tip) || 0,
-      discount: parseFloat(paymentData.discount) || 0,
+      tip:         tip,
+      discount:    discount,
       split_count: parseInt(paymentData.split_count) || 1,
-      vat_amount: vatAmount.toFixed(2), // Send VAT amount to backend
-      total_with_vat: totalWithVAT.toFixed(2) // Send total with VAT
+      vat_amount:       vatAmount.toFixed(2),        // back-calculated VAT component
+      total_with_vat:   vatInclusiveTotal.toFixed(2) // = total_amount (already inclusive)
     };
     
     console.log('📤 Sending payment payload:', paymentPayload);
-    console.log('🧾 VAT Calculation:', {
-      subtotal: subtotal.toFixed(2),
-      vatRate: '15%',
-      vatAmount: vatAmount.toFixed(2),
-      totalWithVAT: totalWithVAT.toFixed(2),
-      tip: paymentData.tip || 0,
+    console.log('🧾 VAT Breakdown (inclusive):', {
+      vatInclusiveTotal: vatInclusiveTotal.toFixed(2),
+      netAmount:  netAmount.toFixed(2),
+      vatAmount:  vatAmount.toFixed(2),
+      tip,
+      discount,
       finalTotal: finalTotal.toFixed(2)
     });
     
@@ -677,9 +679,9 @@ export default function SelfServeCashierDashboard() {
           payment_status: 'paid', 
           payment_method: paymentData.payment_method,
           status: 'completed',
-          vat_amount: vatAmount, // Store VAT locally
-          total_with_vat: totalWithVAT, // Store total with VAT
-          final_total: finalTotal, // Store final total (with tip)
+          vat_amount: vatAmount,
+          total_with_vat: vatInclusiveTotal,
+          final_total: finalTotal,
           payment_data: paymentData 
         } : o
       ));
@@ -720,11 +722,11 @@ export default function SelfServeCashierDashboard() {
         } else {
           // Fallback to simple receipt if HTML endpoint fails
           console.warn('HTML receipt endpoint failed, using fallback');
-          generateFallbackReceipt(subtotal, vatAmount, totalWithVAT, paymentPayload);
+          generateFallbackReceipt(netAmount, vatAmount, vatInclusiveTotal, paymentPayload);
         }
       } catch (receiptError) {
         console.warn('Could not generate HTML receipt:', receiptError);
-        generateFallbackReceipt(subtotal, vatAmount, totalWithVAT, paymentPayload);
+        generateFallbackReceipt(netAmount, vatAmount, vatInclusiveTotal, paymentPayload);
       }
       
       alert(`✅ Payment processed successfully! Order ${selectedOrder.orderNumber} is now paid.`);
@@ -744,213 +746,156 @@ export default function SelfServeCashierDashboard() {
   }
 };
 
-// Updated Fallback receipt generation function with VAT
-const generateFallbackReceipt = (subtotal, vatAmount, totalWithVAT, paymentPayload) => {
+// Fallback receipt — used only when the HTML receipt endpoint is unavailable.
+// Matches the premium design from generateReceiptHTML in BillingController.
+// Parameters: netAmount (pre-VAT), vatAmount (component), vatInclusiveTotal, paymentPayload
+const generateFallbackReceipt = (netAmount, vatAmount, vatInclusiveTotal, paymentPayload) => {
   if (!selectedOrder) return;
-  
+
   const receiptWindow = window.open('', '_blank');
-  if (receiptWindow) {
-    const finalTotal = totalWithVAT + (paymentData.tip || 0);
-    const tipAmount = paymentData.tip || 0;
-    const discountAmount = paymentData.discount || 0;
-    
-    // Format payment method display
-    const formatPaymentMethod = (method) => {
-      if (!method) return 'CASH';
-      return method.toUpperCase();
-    };
-    
-    // Format table information
-    const tableInfo = selectedOrder.table ? 
-      (selectedOrder.table.name || selectedOrder.table.number || selectedOrder.table) : 
-      selectedOrder.tableNumber || 'Takeaway';
-    
-    receiptWindow.document.write(`
-      <html>
-        <head>
-          <title>Receipt #${selectedOrder.orderNumber}</title>
-          <style>
-            body { 
-              font-family: 'Courier New', monospace; 
-              padding: 20px; 
-              max-width: 400px;
-              margin: 0 auto;
-            }
-            .receipt { 
-              border: 2px solid #000; 
-              padding: 20px; 
-            }
-            .header { 
-              text-align: center; 
-              border-bottom: 2px dashed #000; 
-              padding-bottom: 15px;
-              margin-bottom: 20px;
-            }
-            .restaurant-name {
-              font-size: 24px;
-              font-weight: bold;
-              margin: 0;
-              text-transform: uppercase;
-            }
-            .restaurant-address {
-              font-size: 14px;
-              margin: 5px 0;
-              text-transform: uppercase;
-            }
-            .row {
-              display: flex;
-              justify-content: space-between;
-              margin: 8px 0;
-              padding: 4px 0;
-            }
-            .items-table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 15px 0;
-            }
-            .items-table th {
-              text-align: left;
-              border-bottom: 1px solid #000;
-              padding: 8px 0;
-              font-weight: bold;
-            }
-            .items-table td {
-              padding: 6px 0;
-              border-bottom: 1px dashed #ccc;
-            }
-            .items-table tr:last-child td {
-              border-bottom: none;
-            }
-            .total-section {
-              border-top: 2px solid #000;
-              margin-top: 20px;
-              padding-top: 15px;
-            }
-            .highlight {
-              font-weight: bold;
-              font-size: 18px;
-            }
-            .payment-info {
-              background-color: #f5f5f5;
-              padding: 15px;
-              margin: 20px 0;
-              border-radius: 5px;
-            }
-            .footer {
-              text-align: center;
-              margin-top: 30px;
-              font-size: 12px;
-              color: #666;
-            }
-            .vat-note {
-              font-size: 10px;
-              color: #666;
-              text-align: center;
-              margin-top: 10px;
-            }
-            .section-title {
-              font-weight: bold;
-              margin: 15px 0 8px 0;
-              font-size: 16px;
-            }
-            .amount-positive {
-              color: #28a745;
-            }
-            .amount-negative {
-              color: #dc3545;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="receipt">
-            <div class="header">
-              <h1 class="restaurant-name">KUKU CHICKEN</h1>
-              <p class="restaurant-address">DIRE DIWA ADDIS ABABA</p>
-              <p>Phone: (555) 123-4567</p>
-              <p><strong>RECEIPT #${selectedOrder.orderNumber}</strong></p>
-              <p>Date: ${new Date().toLocaleString()}</p>
-            </div>
-            
-            <div class="section-title">ORDER DETAILS</div>
-            <div class="row">
-              <span>Customer:</span>
-              <span><strong>${selectedOrder.customerName || 'Walk-in Customer'}</strong></span>
-            </div>
-            <div class="row">
-              <span>Table:</span>
-              <span><strong>${tableInfo}</strong></span>
-            </div>
-            <div class="row">
-              <span>Cashier:</span>
-              <span>${user?.username || 'System'}</span>
-            </div>
-            
-            <div class="section-title">ORDER ITEMS</div>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Qty</th>
-                  <th style="text-align: right;">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${selectedOrder.items && selectedOrder.items.length > 0 ? 
-                  selectedOrder.items.map(item => `
-                    <tr>
-                      <td>${item.name || item.menuItemName || 'Item'}</td>
-                      <td>${item.quantity || 1}</td>
-                      <td style="text-align: right;">${((item.price || 0) * (item.quantity || 1)).toFixed(2)} ETB</td>
-                    </tr>
-                  `).join('') : 
-                  '<tr><td colspan="4" style="text-align: center;">No items found</td></tr>'
-                }
-              </tbody>
-            </table>
-            
-            <div class="total-section">
-              <div class="row">
-                <span>Subtotal:</span>
-                <span>${subtotal.toFixed(2)} ETB</span>
-              </div>
-              <div class="row">
-                <span>VAT (15%):</span>
-                <span>${vatAmount.toFixed(2)} ETB</span>
-              </div>
-              ${tipAmount > 0 ? `
-                <div class="row">
-                  <span>Tip:</span>
-                  <span class="amount-positive">+${tipAmount.toFixed(2)} ETB</span>
-                </div>
-              ` : ''}
-              ${discountAmount > 0 ? `
-                <div class="row">
-                  <span>Discount:</span>
-                  <span class="amount-negative">-${discountAmount.toFixed(2)} ETB</span>
-                </div>
-              ` : ''}
-              <div class="row highlight">
-                <span>FINAL TOTAL:</span>
-                <span>${finalTotal.toFixed(2)} ETB</span>
-              </div>
-            </div>
-            
-            <div class="footer">
-              <p>Thank you for dining with us!</p>
-              <p class="vat-note">VAT included at 15% | TIN: 0000000</p>
-            </div>
+  if (!receiptWindow) return;
+
+  const tip        = parseFloat(paymentData.tip)      || 0;
+  const discount   = parseFloat(paymentData.discount) || 0;
+  const finalTotal = vatInclusiveTotal + tip - discount; // VAT already included
+
+  const tableInfo = selectedOrder.table
+    ? (selectedOrder.table.name || selectedOrder.table.number || selectedOrder.table)
+    : selectedOrder.tableNumber || 'Takeaway';
+
+  const now     = new Date();
+  const fmtDate = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const fmtTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  receiptWindow.document.write(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Receipt · ${selectedOrder.orderNumber}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #e8e4dc; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; font-family: 'IBM Plex Mono', monospace; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { width: 100%; max-width: 420px; }
+    .receipt { background: #faf8f4; border: 1px solid #c8bfaf; box-shadow: 0 2px 0 #bdb3a3, 0 6px 24px rgba(0,0,0,0.12); position: relative; overflow: hidden; }
+    .receipt::before, .receipt::after { content: ''; position: absolute; width: 18px; height: 18px; border-color: #c0b49e; border-style: solid; }
+    .receipt::before { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+    .receipt::after  { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+    .header { background: #1a1a1a; color: #faf8f4; text-align: center; padding: 28px 24px 22px; }
+    .header-badge { font-size: 9px; letter-spacing: 4px; text-transform: uppercase; color: #888; margin-bottom: 10px; }
+    .restaurant-name { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; letter-spacing: 1px; line-height: 1.1; color: #ffffff; }
+    .restaurant-sub { font-size: 9.5px; letter-spacing: 3.5px; text-transform: uppercase; color: #8a8a8a; margin-top: 6px; }
+    .header-divider { width: 40px; height: 1px; background: #444; margin: 14px auto; }
+    .receipt-meta { display: flex; justify-content: space-between; font-size: 10px; color: #999; letter-spacing: 0.5px; }
+    .receipt-number { color: #faf8f4; font-weight: 600; font-size: 11px; letter-spacing: 1px; }
+    .tear { height: 12px; background: repeating-linear-gradient(90deg, #faf8f4 0px, #faf8f4 8px, #1a1a1a 8px, #1a1a1a 12px); opacity: 0.15; }
+    .body { padding: 20px 24px; }
+    .section-label { font-size: 8.5px; letter-spacing: 3px; text-transform: uppercase; color: #9a9080; font-weight: 600; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #e0d9ce; }
+    .info-grid { margin-bottom: 20px; }
+    .info-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; font-size: 11px; }
+    .info-label { color: #9a9080; }
+    .info-value { color: #1a1a1a; font-weight: 500; text-align: right; max-width: 60%; }
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+    .items-table thead tr th { font-size: 8.5px; letter-spacing: 2px; text-transform: uppercase; color: #9a9080; font-weight: 600; padding: 0 0 8px; border-bottom: 1px dashed #c8bfaf; }
+    .items-table thead tr th:last-child { text-align: right; }
+    .items-table thead tr th:nth-child(2), .items-table thead tr th:nth-child(3) { text-align: center; }
+    .items-table tbody tr td { padding: 9px 0; font-size: 11.5px; color: #1a1a1a; border-bottom: 1px dashed #e4ddd3; vertical-align: top; }
+    .items-table tbody tr:last-child td { border-bottom: none; }
+    .item-qty, .item-unit { text-align: center; color: #6a6055; }
+    .item-total { text-align: right; font-weight: 600; white-space: nowrap; }
+    .totals-block { background: #f0ece4; border: 1px solid #ddd6c8; border-radius: 2px; padding: 14px 16px; margin: 18px 0; }
+    .total-row { display: flex; justify-content: space-between; font-size: 11px; padding: 4px 0; color: #4a4035; }
+    .total-row.vat-row { color: #7a7065; font-size: 10.5px; font-style: italic; }
+    .total-row.tip-row { color: #2a6a3a; }
+    .total-row.disc-row { color: #8a2a1a; }
+    .total-separator { border: none; border-top: 1px solid #c8bfaf; margin: 10px 0; }
+    .total-row.grand { font-size: 14px; font-weight: 700; color: #1a1a1a; padding-top: 6px; }
+    .payment-block { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border: 1px solid #c8bfaf; margin-bottom: 18px; }
+    .payment-method-label { font-size: 8.5px; letter-spacing: 2.5px; text-transform: uppercase; color: #9a9080; }
+    .payment-method-value { font-size: 13px; font-weight: 700; color: #1a1a1a; letter-spacing: 1px; margin-top: 2px; }
+    .payment-status { font-size: 9px; letter-spacing: 2px; font-weight: 600; text-transform: uppercase; background: #1a1a1a; color: #faf8f4; padding: 5px 10px; }
+    .footer-divider { border: none; border-top: 1px dashed #c0b49e; margin: 4px 0 16px; }
+    .footer { text-align: center; padding-bottom: 24px; }
+    .footer-thanks { font-family: 'Playfair Display', serif; font-size: 14px; color: #3a3530; margin-bottom: 10px; }
+    .footer-tin { font-size: 9px; letter-spacing: 1.5px; color: #a09080; line-height: 1.8; }
+    .footer-tin span { color: #6a6055; font-weight: 600; }
+    @media print { body { background: white; padding: 0; } .receipt { border: none; box-shadow: none; } .receipt::before, .receipt::after { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="receipt">
+      <div class="header">
+        <div class="header-badge">Official Tax Receipt</div>
+        <div class="restaurant-name">KUKU CHICKEN</div>
+        <div class="restaurant-sub">Dire Diwa · Addis Ababa</div>
+        <div class="header-divider"></div>
+        <div class="receipt-meta">
+          <span class="receipt-number">#${selectedOrder.orderNumber}</span>
+          <span>${fmtDate} &nbsp;·&nbsp; ${fmtTime}</span>
+        </div>
+      </div>
+      <div class="tear"></div>
+      <div class="body">
+        <div class="info-grid">
+          <div class="section-label">Order Details</div>
+          <div class="info-row"><span class="info-label">Customer</span><span class="info-value">${selectedOrder.customerName || 'Walk-in'}</span></div>
+          <div class="info-row"><span class="info-label">Table</span><span class="info-value">${tableInfo}</span></div>
+          <div class="info-row"><span class="info-label">Served by</span><span class="info-value">${user?.username || 'System'}</span></div>
+        </div>
+        <div style="margin-bottom:20px">
+          <div class="section-label">Items Ordered</div>
+          <table class="items-table">
+            <thead><tr><th style="text-align:left;width:45%">Description</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr></thead>
+            <tbody>
+              ${selectedOrder.items && selectedOrder.items.length > 0
+                ? selectedOrder.items.map(item => {
+                    const unitPrice = parseFloat(item.price || 0);
+                    const qty = item.quantity || 1;
+                    return `<tr>
+                      <td style="font-weight:500">${item.name || 'Item'}</td>
+                      <td class="item-qty">${qty}</td>
+                      <td class="item-unit">${unitPrice.toFixed(2)}</td>
+                      <td class="item-total">${(unitPrice * qty).toFixed(2)} ETB</td>
+                    </tr>`;
+                  }).join('')
+                : '<tr><td colspan="4" style="text-align:center;padding:12px 0;color:#9a9080">No items</td></tr>'
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="totals-block">
+          <div class="total-row"><span>Net Amount (excl. VAT)</span><span>${netAmount.toFixed(2)} ETB</span></div>
+          <div class="total-row vat-row"><span>VAT @ 15% &nbsp;<em>(incl. in price)</em></span><span>${vatAmount.toFixed(2)} ETB</span></div>
+          ${tip > 0 ? `<div class="total-row tip-row"><span>Tip / Service</span><span>+ ${tip.toFixed(2)} ETB</span></div>` : ''}
+          ${discount > 0 ? `<div class="total-row disc-row"><span>Discount</span><span>− ${discount.toFixed(2)} ETB</span></div>` : ''}
+          <hr class="total-separator">
+          <div class="total-row grand"><span>TOTAL</span><span>${finalTotal.toFixed(2)} ETB</span></div>
+        </div>
+        <div class="payment-block">
+          <div>
+            <div class="payment-method-label">Payment Method</div>
+            <div class="payment-method-value">${(paymentPayload.payment_method || 'CASH').toUpperCase()}</div>
           </div>
-          <script>
-            // Auto-print after loading
-            setTimeout(() => {
-              window.print();
-            }, 500);
-          </script>
-        </body>
-      </html>
-    `);
-    receiptWindow.document.close();
-  }
+          <div style="text-align:right">
+            <div class="payment-status">PAID</div>
+          </div>
+        </div>
+        <hr class="footer-divider">
+        <div class="footer">
+          <div class="footer-thanks">Thank you for dining with us</div>
+          <div class="footer-tin">VAT Registration No. &nbsp;<span>ETH-VAT-000000</span><br>TIN: <span>0000000</span> &nbsp;·&nbsp; VAT incl. at 15%<br>Kuku Chicken · Addis Ababa, Ethiopia</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>setTimeout(() => { window.print(); }, 600);</script>
+</body>
+</html>`);
+  receiptWindow.document.close();
 };
   // MARK ORDER READY FOR SERVING (Cashier can buzz pager)
   const markOrderReady = async (orderId) => {

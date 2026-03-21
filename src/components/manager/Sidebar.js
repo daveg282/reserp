@@ -1,3 +1,4 @@
+// components/manager/Sidebar.js
 'use client';
 import { useState } from 'react';
 import { 
@@ -13,7 +14,10 @@ import {
   Settings,
   Briefcase,
   DollarSign,
-  X
+  X,
+  FileText, // Add this icon for the report generator
+  ChefHat, // For kitchen operations
+  ClipboardList // For orders service
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -37,7 +41,12 @@ const menuSections = [
     icon: Briefcase,
     label: 'Operations',
     view: 'operations',
-    subsections: ['tables-reservations', 'orders-service', 'kitchen-operations']
+    subsections: [
+      'tables-reservations', 
+      'kitchen-operations',
+       'orders-service', 
+      'advanced-report-generator' 
+    ]
   },
   {
     id: 'inventory',
@@ -62,11 +71,12 @@ const menuSections = [
   }
 ];
 
-// Subsection labels mapping
+// Subsection labels mapping - ADD THE NEW REPORT GENERATOR LABEL
 const subsectionLabels = {
   'tables-reservations': 'Tables & Reservations',
   'orders-service': 'Orders & Service',
   'kitchen-operations': 'Kitchen Operations',
+  'advanced-report-generator': 'Advanced Reports', // ADD THIS LINE
   'stock-management': 'Stock Management',
   'suppliers': 'Suppliers',
   'profit-loss': 'Profit & Loss',
@@ -79,7 +89,25 @@ const subsectionLabels = {
   'user-management': 'User Management'
 };
 
-// Mapping of views to their default subsections
+// Subsection icons mapping - ADD ICON FOR REPORT GENERATOR
+const subsectionIcons = {
+  'tables-reservations': Briefcase,
+  'orders-service': ClipboardList,
+  'kitchen-operations': ChefHat,
+  'advanced-report-generator': FileText, // ADD THIS LINE
+  'stock-management': Package,
+  'suppliers': Users,
+  'profit-loss': DollarSign,
+  'vat-report': BarChart3,
+  'financial-summary': BarChart3,
+  'daily-reports': FileText,
+  'performance-reports': Users,
+  'financial-reports': DollarSign,
+  'restaurant-settings': Settings,
+  'user-management': Users
+};
+
+// Mapping of views to their default subsections - UPDATE WITH NEW SUBSECTION
 const viewToSubsectionMap = {
   'stock': 'stock-management',
   'suppliers': 'suppliers',
@@ -87,7 +115,8 @@ const viewToSubsectionMap = {
   'operations': 'tables-reservations',
   'settings': 'restaurant-settings',
   'financial': 'financial-summary',
-  'reports': 'daily-reports'
+  'reports': 'daily-reports',
+  'advanced-reports': 'advanced-report-generator' // ADD THIS LINE
 };
 
 export default function ManagerSidebar({ 
@@ -148,12 +177,13 @@ export default function ManagerSidebar({
         // Determine which view to set based on the subsection
         let viewToSet = section.view;
         
-        // Map subsection to view
+        // Map subsection to view - UPDATED WITH NEW SUBSECTION
         if (firstSubsection === 'stock-management') viewToSet = 'stock';
         else if (firstSubsection === 'suppliers') viewToSet = 'suppliers';
         else if (firstSubsection === 'profit-loss' || firstSubsection === 'vat-report' || firstSubsection === 'financial-summary') viewToSet = 'financial';
         else if (firstSubsection === 'user-management' || firstSubsection === 'restaurant-settings') viewToSet = 'settings';
         else if (firstSubsection === 'tables-reservations' || firstSubsection === 'orders-service' || firstSubsection === 'kitchen-operations') viewToSet = 'operations';
+        else if (firstSubsection === 'advanced-report-generator') viewToSet = 'operations'; // ADD THIS LINE
         
         setActiveView(viewToSet);
       } else {
@@ -170,12 +200,13 @@ export default function ManagerSidebar({
     // Determine which view to set based on the subsection
     let viewToSet = sectionView;
     
-    // Map subsection to view
+    // Map subsection to view - UPDATED WITH NEW SUBSECTION
     if (subsection === 'stock-management') viewToSet = 'stock';
     else if (subsection === 'suppliers') viewToSet = 'suppliers';
     else if (subsection === 'profit-loss' || subsection === 'vat-report' || subsection === 'financial-summary') viewToSet = 'financial';
     else if (subsection === 'user-management' || subsection === 'restaurant-settings') viewToSet = 'settings';
     else if (subsection === 'tables-reservations' || subsection === 'orders-service' || subsection === 'kitchen-operations') viewToSet = 'operations';
+    else if (subsection === 'advanced-report-generator') viewToSet = 'operations'; // ADD THIS LINE
     
     setActiveView(viewToSet);
     setActiveSubsection(subsection);
@@ -195,26 +226,22 @@ export default function ManagerSidebar({
     
     // For sections with subsections, check if current view belongs to this section
     if (section.view === 'inventory') {
-      // Inventory section is active if we're in stock or suppliers views
       return activeView === 'stock' || activeView === 'suppliers';
     }
     else if (section.view === 'financial') {
-      // Financial section is active if we're in financial view
       return activeView === 'financial';
     }
     else if (section.view === 'settings') {
-      // Settings section is active if we're in settings view
       return activeView === 'settings';
     }
     else if (section.view === 'operations') {
-      // Operations section is active if we're in operations view
       return activeView === 'operations';
     }
     
     return false;
   };
 
-  // Helper function to determine if a subsection is active
+  // Helper function to determine if a subsection is active - UPDATED WITH NEW SUBSECTION
   const isSubsectionActive = (subsection) => {
     // First, if we have an activeSubsection, check exact match
     if (activeSubsection) {
@@ -230,6 +257,9 @@ export default function ManagerSidebar({
     // Special mapping for inventory views
     if (activeView === 'stock' && subsection === 'stock-management') return true;
     if (activeView === 'suppliers' && subsection === 'suppliers') return true;
+    
+    // Special mapping for advanced reports
+    if (activeView === 'operations' && subsection === 'advanced-report-generator' && activeSubsection === 'advanced-report-generator') return true;
     
     return false;
   };
@@ -307,6 +337,7 @@ export default function ManagerSidebar({
                   <div className="ml-10 mt-2 space-y-1">
                     {section.subsections.map((subsection) => {
                       const isSubActive = isSubsectionActive(subsection);
+                      const SubIcon = subsectionIcons[subsection] || FileText;
                       
                       return (
                         <button
@@ -318,8 +349,10 @@ export default function ManagerSidebar({
                               : 'hover:bg-gray-700 text-gray-200'
                           }`}
                         >
-                          <div className="w-2 h-2 rounded-full bg-current mr-3 opacity-70"></div>
+                          <SubIcon className="w-4 h-4 mr-3" />
                           <span>{subsectionLabels[subsection] || subsection}</span>
+                          
+                          
                         </button>
                       );
                     })}
